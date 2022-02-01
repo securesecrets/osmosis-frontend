@@ -1,7 +1,7 @@
 import styled from '@emotion/styled';
 import { AppCurrency, Currency, IBCCurrency } from '@keplr-wallet/types';
 import { observer } from 'mobx-react-lite';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Img } from 'src/components/common/Img';
 import { ButtonFaint, ButtonSecondary } from 'src/components/layouts/Buttons';
 import { Text, TitleText } from 'src/components/Texts';
@@ -11,7 +11,6 @@ import { TableData, TableHeaderRow } from 'src/pages/assets/components/Table';
 import { useStore } from 'src/stores';
 import { makeIBCMinimalDenom } from 'src/utils/ibc';
 import useWindowSize from 'src/hooks/useWindowSize';
-import { useLocation } from 'react-router-dom';
 import { PricePretty } from '@keplr-wallet/unit/build/price-pretty';
 import { Dec } from '@keplr-wallet/unit';
 
@@ -57,6 +56,9 @@ export const AssetBalancesList = observer(function AssetBalancesList() {
 			sourceChannelId: channelInfo.sourceChannelId,
 			destChannelId: channelInfo.destChannelId,
 			isUnstable: channelInfo.isUnstable,
+
+			externalLinkDeposit: channelInfo.externalLinkDeposit,
+			externalLinkWithdraw: channelInfo.externalLinkWithdraw,
 		};
 	});
 
@@ -75,28 +77,6 @@ export const AssetBalancesList = observer(function AssetBalancesList() {
 	>({ open: false });
 
 	const close = () => setDialogState(v => ({ ...v, open: false }));
-
-	const location = useLocation();
-	useEffect(() => {
-		if (location.search === '?terra=true') {
-			const luna = ibcBalances.find(
-				bal =>
-					bal.balance.currency.coinMinimalDenom ===
-					'ibc/0EF15DF2F02480ADE0BB6E85D9EBB5DAEA2836D3860E9F97F9AADE4F57A31AA0'
-			);
-
-			if (luna && 'paths' in luna.balance.currency) {
-				setDialogState({
-					open: true,
-					currency: luna.balance.currency,
-					counterpartyChainId: luna.chainInfo.chainId,
-					sourceChannelId: luna.sourceChannelId,
-					destChannelId: luna.destChannelId,
-					isWithdraw: false,
-				});
-			}
-		}
-	}, []);
 
 	return (
 		<React.Fragment>
@@ -172,24 +152,32 @@ export const AssetBalancesList = observer(function AssetBalancesList() {
 									.toString()}
 								totalFiatValue={totalFiatValue}
 								onDeposit={() => {
-									setDialogState({
-										open: true,
-										counterpartyChainId: bal.chainInfo.chainId,
-										currency: currency as IBCCurrency,
-										sourceChannelId: bal.sourceChannelId,
-										destChannelId: bal.destChannelId,
-										isWithdraw: false,
-									});
+									if (!bal.externalLinkDeposit) {
+										setDialogState({
+											open: true,
+											counterpartyChainId: bal.chainInfo.chainId,
+											currency: currency as IBCCurrency,
+											sourceChannelId: bal.sourceChannelId,
+											destChannelId: bal.destChannelId,
+											isWithdraw: false,
+										});
+									} else {
+										window.open(bal.externalLinkDeposit, '_blank');
+									}
 								}}
 								onWithdraw={() => {
-									setDialogState({
-										open: true,
-										counterpartyChainId: bal.chainInfo.chainId,
-										currency: currency as IBCCurrency,
-										sourceChannelId: bal.sourceChannelId,
-										destChannelId: bal.destChannelId,
-										isWithdraw: true,
-									});
+									if (!bal.externalLinkWithdraw) {
+										setDialogState({
+											open: true,
+											counterpartyChainId: bal.chainInfo.chainId,
+											currency: currency as IBCCurrency,
+											sourceChannelId: bal.sourceChannelId,
+											destChannelId: bal.destChannelId,
+											isWithdraw: true,
+										});
+									} else {
+										window.open(bal.externalLinkWithdraw, '_blank');
+									}
 								}}
 								isUnstable={bal.isUnstable}
 								isMobileView={isMobileView}

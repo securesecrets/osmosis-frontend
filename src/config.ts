@@ -538,6 +538,9 @@ export const IBCAssetInfos: {
 	// In some reasons, ibc channel is in unstable status.
 	// Disable the deposit, withdraw button and show the tooltip.
 	isUnstable?: boolean;
+
+	externalLinkDeposit?: string;
+	externalLinkWithdraw?: string;
 }[] = [
 	{
 		counterpartyChainId: 'cosmoshub-4',
@@ -730,6 +733,14 @@ export const IBCAssetInfos: {
 		sourceChannelId: 'channel-165',
 		destChannelId: 'channel-0',
 		coinMinimalDenom: 'usomm',
+	},
+	{
+		counterpartyChainId: 'injective-1',
+		sourceChannelId: 'channel-122',
+		destChannelId: 'channel-8',
+		coinMinimalDenom: 'inj',
+		externalLinkDeposit: 'https://hub.injective.network/bridge',
+		externalLinkWithdraw: 'https://hub.injective.network/bridge',
 	},
 ];
 
@@ -1909,5 +1920,42 @@ export const EmbedChainInfos: ChainInfoWithExplorer[] = [
 		],
 		features: ['stargate', 'ibc-transfer', 'no-legacy-stdTx', 'ibc-go'],
 		explorerUrlToTx: 'https://sommscan.io',
+	},
+	{
+		rpc: '',
+		rest: '',
+		chainId: 'injective-1',
+		chainName: 'Injective',
+		stakeCurrency: {
+			coinDenom: 'INJ',
+			coinMinimalDenom: 'inj',
+			coinDecimals: 18,
+			coinGeckoId: 'injective-protocol',
+			coinImageUrl: window.location.origin + '/public/assets/tokens/inj.svg',
+		},
+		bip44: {
+			coinType: 118,
+		},
+		bech32Config: Bech32Address.defaultBech32Config('inj'),
+		currencies: [
+			{
+				coinDenom: 'INJ',
+				coinMinimalDenom: 'inj',
+				coinDecimals: 18,
+				coinGeckoId: 'injective-protocol',
+				coinImageUrl: window.location.origin + '/public/assets/tokens/inj.svg',
+			},
+		],
+		feeCurrencies: [
+			{
+				coinDenom: 'INJ',
+				coinMinimalDenom: 'inj',
+				coinDecimals: 18,
+				coinGeckoId: 'injective-protocol',
+				coinImageUrl: window.location.origin + '/public/assets/tokens/inj.svg',
+			},
+		],
+		features: ['stargate', 'ibc-transfer', 'no-legacy-stdTx', 'ibc-go'],
+		explorerUrlToTx: 'https://www.mintscan.io/injective/txs/{txHash}',
 	},
 ];
