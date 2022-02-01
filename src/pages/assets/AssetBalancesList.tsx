@@ -11,7 +11,6 @@ import { TableData, TableHeaderRow } from 'src/pages/assets/components/Table';
 import { useStore } from 'src/stores';
 import { makeIBCMinimalDenom } from 'src/utils/ibc';
 import useWindowSize from 'src/hooks/useWindowSize';
-import { useLocation } from 'react-router-dom';
 import { PricePretty } from '@keplr-wallet/unit/build/price-pretty';
 import { Dec } from '@keplr-wallet/unit';
 
@@ -26,38 +25,70 @@ export const AssetBalancesList = observer(function AssetBalancesList() {
 	const account = accountStore.getAccount(chainStore.current.chainId);
 	const queries = queriesStore.get(chainStore.current.chainId);
 
-	const ibcBalances = IBCAssetInfos.map(channelInfo => {
-		const chainInfo = chainStore.getChain(channelInfo.counterpartyChainId);
-		const ibcDenom = makeIBCMinimalDenom(channelInfo.sourceChannelId, channelInfo.coinMinimalDenom);
-
-		const originCurrency = chainInfo.currencies.find(
-			cur => cur.coinMinimalDenom === channelInfo.coinMinimalDenom
-		) as Currency;
-
-		if (!originCurrency) {
-			throw new Error(`Unknown currency ${channelInfo.coinMinimalDenom} for ${channelInfo.counterpartyChainId}`);
-		}
-
-		const balance = queries.queryBalances.getQueryBech32Address(account.bech32Address).getBalanceFromCurrency({
-			...originCurrency,
-			coinMinimalDenom: ibcDenom,
-			paths: [
-				{
-					portId: 'transfer',
-					channelId: channelInfo.sourceChannelId,
-				},
-			],
-			originChainId: chainInfo.chainId,
-			originCurrency,
+	useEffect(() => {
+		IBCAssetInfos.forEach(channelInfo => {
+			if (!('counterpartyChainId' in channelInfo)) {
+				const ibcDenom = makeIBCMinimalDenom(channelInfo.sourceChannelId, channelInfo.coinMinimalDenom);
+				chainStore.currentFluent.addCurrencies({
+					...channelInfo.originCurrency,
+					coinMinimalDenom: ibcDenom,
+				});
+			}
 		});
+	}, [chainStore.currentFluent]);
 
-		return {
-			chainInfo: chainInfo,
-			balance,
-			sourceChannelId: channelInfo.sourceChannelId,
-			destChannelId: channelInfo.destChannelId,
-			isUnstable: channelInfo.isUnstable,
-		};
+	const ibcBalances = IBCAssetInfos.map(channelInfo => {
+		if ('counterpartyChainId' in channelInfo) {
+			const chainInfo = chainStore.getChain(channelInfo.counterpartyChainId);
+			const ibcDenom = makeIBCMinimalDenom(channelInfo.sourceChannelId, channelInfo.coinMinimalDenom);
+
+			const originCurrency = chainInfo.currencies.find(
+				cur => cur.coinMinimalDenom === channelInfo.coinMinimalDenom
+			) as Currency;
+
+			if (!originCurrency) {
+				throw new Error(`Unknown currency ${channelInfo.coinMinimalDenom} for ${channelInfo.counterpartyChainId}`);
+			}
+
+			const balance = queries.queryBalances.getQueryBech32Address(account.bech32Address).getBalanceFromCurrency({
+				...originCurrency,
+				coinMinimalDenom: ibcDenom,
+				paths: [
+					{
+						portId: 'transfer',
+						channelId: channelInfo.sourceChannelId,
+					},
+				],
+				originChainId: chainInfo.chainId,
+				originCurrency,
+			});
+
+			return {
+				chainInfo: chainInfo,
+				balance,
+				chainName: chainInfo.chainName,
+				sourceChannelId: channelInfo.sourceChannelId,
+				destChannelId: channelInfo.destChannelId,
+				isUnstable: channelInfo.isUnstable,
+			};
+		} else {
+			const ibcDenom = makeIBCMinimalDenom(channelInfo.sourceChannelId, channelInfo.coinMinimalDenom);
+
+			const balance = queries.queryBalances.getQueryBech32Address(account.bech32Address).getBalanceFromCurrency({
+				...channelInfo.originCurrency,
+				coinMinimalDenom: ibcDenom,
+			});
+
+			return {
+				balance,
+				chainName: channelInfo.chainName,
+				externalLinkDeposit: channelInfo.externalLinkDeposit,
+				externalLinkWithdraw: channelInfo.externalLinkWithdraw,
+				sourceChannelId: channelInfo.sourceChannelId,
+				destChannelId: channelInfo.destChannelId,
+				isUnstable: channelInfo.isUnstable,
+			};
+		}
 	});
 
 	const [dialogState, setDialogState] = React.useState<
@@ -75,28 +106,6 @@ export const AssetBalancesList = observer(function AssetBalancesList() {
 	>({ open: false });
 
 	const close = () => setDialogState(v => ({ ...v, open: false }));
-
-	const location = useLocation();
-	useEffect(() => {
-		if (location.search === '?terra=true') {
-			const luna = ibcBalances.find(
-				bal =>
-					bal.balance.currency.coinMinimalDenom ===
-					'ibc/0EF15DF2F02480ADE0BB6E85D9EBB5DAEA2836D3860E9F97F9AADE4F57A31AA0'
-			);
-
-			if (luna && 'paths' in luna.balance.currency) {
-				setDialogState({
-					open: true,
-					currency: luna.balance.currency,
-					counterpartyChainId: luna.chainInfo.chainId,
-					sourceChannelId: luna.sourceChannelId,
-					destChannelId: luna.destChannelId,
-					isWithdraw: false,
-				});
-			}
-		}
-	}, []);
 
 	return (
 		<React.Fragment>
@@ -162,7 +171,7 @@ export const AssetBalancesList = observer(function AssetBalancesList() {
 						return (
 							<AssetBalanceRow
 								key={currency.coinMinimalDenom}
-								chainName={bal.chainInfo.chainName}
+								chainName={bal.chainName}
 								coinDenom={coinDenom}
 								currency={currency}
 								balance={bal.balance
@@ -172,24 +181,32 @@ export const AssetBalancesList = observer(function AssetBalancesList() {
 									.toString()}
 								totalFiatValue={totalFiatValue}
 								onDeposit={() => {
-									setDialogState({
-										open: true,
-										counterpartyChainId: bal.chainInfo.chainId,
-										currency: currency as IBCCurrency,
-										sourceChannelId: bal.sourceChannelId,
-										destChannelId: bal.destChannelId,
-										isWithdraw: false,
-									});
+									if (bal.chainInfo) {
+										setDialogState({
+											open: true,
+											counterpartyChainId: bal.chainInfo.chainId,
+											currency: currency as IBCCurrency,
+											sourceChannelId: bal.sourceChannelId,
+											destChannelId: bal.destChannelId,
+											isWithdraw: false,
+										});
+									} else {
+										window.open(bal.externalLinkDeposit, '_blank');
+									}
 								}}
 								onWithdraw={() => {
-									setDialogState({
-										open: true,
-										counterpartyChainId: bal.chainInfo.chainId,
-										currency: currency as IBCCurrency,
-										sourceChannelId: bal.sourceChannelId,
-										destChannelId: bal.destChannelId,
-										isWithdraw: true,
-									});
+									if (bal.chainInfo) {
+										setDialogState({
+											open: true,
+											counterpartyChainId: bal.chainInfo.chainId,
+											currency: currency as IBCCurrency,
+											sourceChannelId: bal.sourceChannelId,
+											destChannelId: bal.destChannelId,
+											isWithdraw: true,
+										});
+									} else {
+										window.open(bal.externalLinkWithdraw, '_blank');
+									}
 								}}
 								isUnstable={bal.isUnstable}
 								isMobileView={isMobileView}

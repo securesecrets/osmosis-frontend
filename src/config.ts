@@ -2,6 +2,7 @@ import { Bech32Address } from '@keplr-wallet/cosmos';
 import { ChainInfoWithExplorer } from './stores/chain';
 import { DenomHelper } from '@keplr-wallet/common';
 import { Int } from '@keplr-wallet/unit';
+import { AppCurrency } from '@keplr-wallet/types';
 
 export const HideCreateNewPool: boolean = false;
 export const HideLBPPoolFromPage: boolean = false;
@@ -528,17 +529,33 @@ export const RewardEpochIdentifier = 'day';
  * Determine the channel info per the chain.
  * Guide users to use the same channel for convenience.
  */
-export const IBCAssetInfos: {
-	counterpartyChainId: string;
-	// Souce channel id based on the Osmosis chain
-	sourceChannelId: string;
-	// Destination channel id from Osmosis chain
-	destChannelId: string;
-	coinMinimalDenom: string;
-	// In some reasons, ibc channel is in unstable status.
-	// Disable the deposit, withdraw button and show the tooltip.
-	isUnstable?: boolean;
-}[] = [
+export const IBCAssetInfos: (
+	| {
+			counterpartyChainId: string;
+			// Souce channel id based on the Osmosis chain
+			sourceChannelId: string;
+			// Destination channel id from Osmosis chain
+			destChannelId: string;
+			coinMinimalDenom: string;
+			// In some reasons, ibc channel is in unstable status.
+			// Disable the deposit, withdraw button and show the tooltip.
+			isUnstable?: boolean;
+	  }
+	| {
+			chainName: string;
+			originCurrency: AppCurrency;
+			externalLinkDeposit: string;
+			externalLinkWithdraw: string;
+			// Souce channel id based on the Osmosis chain
+			sourceChannelId: string;
+			// Destination channel id from Osmosis chain
+			destChannelId: string;
+			coinMinimalDenom: string;
+			// In some reasons, ibc channel is in unstable status.
+			// Disable the deposit, withdraw button and show the tooltip.
+			isUnstable?: boolean;
+	  }
+)[] = [
 	{
 		counterpartyChainId: 'cosmoshub-4',
 		sourceChannelId: 'channel-0',
@@ -730,6 +747,19 @@ export const IBCAssetInfos: {
 		sourceChannelId: 'channel-165',
 		destChannelId: 'channel-0',
 		coinMinimalDenom: 'usomm',
+	},
+	{
+		chainName: 'Injective',
+		originCurrency: {
+			coinDenom: 'INJ',
+			coinMinimalDenom: 'inj',
+			coinDecimals: 18,
+		},
+		externalLinkDeposit: 'https://hub.injective.network/bridge',
+		externalLinkWithdraw: 'https://hub.injective.network/bridge',
+		sourceChannelId: 'channel-122',
+		destChannelId: 'channel-8',
+		coinMinimalDenom: 'inj',
 	},
 ];
 
