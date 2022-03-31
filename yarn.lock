@@ -2236,10 +2236,10 @@
     mobx "^6.1.7"
     web3 "^1.2.6"
 
-"@keplr-wallet/hooks@0.9.18-rc.2":
-  version "0.9.18-rc.2"
-  resolved "https://registry.yarnpkg.com/@keplr-wallet/hooks/-/hooks-0.9.18-rc.2.tgz#8febda976a75cf7bbe40f0ea2acb44372ba001f6"
-  integrity sha512-XsgnuevwM5mcXdqQB7FFTyh16OojJfarBk3wqTQ4DtqfX9+Mx4ArmlBLg5wHxVxMKWFpLFvzVJPG6KYG3BuvZg==
+"@keplr-wallet/hooks@0.9.18-rc.3":
+  version "0.9.18-rc.3"
+  resolved "https://registry.yarnpkg.com/@keplr-wallet/hooks/-/hooks-0.9.18-rc.3.tgz#ac3c40e6b6af18d4c15db284f0490aaa1985d24d"
+  integrity sha512-uvc/tkYM3Arj1LrjmF1Cw5y67uWyLsZeABeg5OvWIVlo/KnaQuZHFuymoizlyiAo/TK8kL5UDviok1p4DAqZXA==
   dependencies:
     "@cosmjs/launchpad" "^0.24.0-alpha.25"
     "@keplr-wallet/background" "^0.9.18-rc.0"
@@ -2248,7 +2248,7 @@
     "@keplr-wallet/crypto" "^0.9.10"
     "@keplr-wallet/ens" "^0.9.0"
     "@keplr-wallet/popup" "^0.9.6"
-    "@keplr-wallet/stores" "^0.9.18-rc.2"
+    "@keplr-wallet/stores" "^0.9.18-rc.3"
     "@keplr-wallet/types" "^0.9.18-rc.0"
     "@keplr-wallet/unit" "^0.9.18-rc.0"
     long "^4.0.0"
@@ -2297,10 +2297,10 @@
   resolved "https://registry.yarnpkg.com/@keplr-wallet/router/-/router-0.9.6.tgz#43ad4692af9ea18a13dafe97a83369b03d491c9b"
   integrity sha512-TZfqkRwGOMk0nbgel41xLfD8ifM59WIXNt90rJjKynNT1/TOLTGxRDC8Ie5yY9Oak0lz7rmdrWNTOsvtWyuplA==
 
-"@keplr-wallet/stores@0.9.18-rc.2":
-  version "0.9.18-rc.2"
-  resolved "https://registry.yarnpkg.com/@keplr-wallet/stores/-/stores-0.9.18-rc.2.tgz#84d20f2633e51e22017dd00035658fe2db87ac4a"
-  integrity sha512-xIy8J6wxRu6v7+1z32JgaZh/1KGMucE4uOsDfKy9fJcRtDXZZmY//8K7gPrEI3nhE86vj6eve8lY1ytlTWae+A==
+"@keplr-wallet/stores@0.9.18-rc.3":
+  version "0.9.18-rc.3"
+  resolved "https://registry.yarnpkg.com/@keplr-wallet/stores/-/stores-0.9.18-rc.3.tgz#cfed35b756cc2debb08bac3dca8f13de5346b13e"
+  integrity sha512-aPA3BA1jyEXLfOyb3O7eREycysHvGRG4JgC4Sdwooj0ReRa2+LGD3jnyoWpq19uFHmJKRsH6ANk4W3oMQzJwGg==
   dependencies:
     "@cosmjs/encoding" "^0.24.0-alpha.25"
     "@cosmjs/launchpad" "^0.24.0-alpha.25"
@@ -2323,7 +2323,7 @@
     p-queue "^6.6.2"
     utility-types "^3.10.0"
 
-"@keplr-wallet/stores@^0.9.18-rc.2":
+"@keplr-wallet/stores@^0.9.18-rc.3":
   version "0.9.18"
   resolved "https://registry.yarnpkg.com/@keplr-wallet/stores/-/stores-0.9.18.tgz#5652d4a479131a2d5a88459c80a9925a137431f0"
   integrity sha512-F+u144HUqaxl/KxRfS8JJIgXTruYGQRHggLcsDxCZ/JohgwgTgQuURRfh+G/zlg438F2XYNU3sbUqQe1GWyEBw==
