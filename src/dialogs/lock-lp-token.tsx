@@ -36,10 +36,10 @@ export const LockLpTokenDialog = wrapBaseDialog(
 
 			const amountConfig = useBasicAmountConfig(
 				chainStore,
+				queriesStore,
 				chainStore.current.chainId,
 				account.bech32Address,
-				queries.osmosis.queryGammPoolShare.getShareCurrency(poolId),
-				queries.queryBalances
+				queries.osmosis.queryGammPoolShare.getShareCurrency(poolId)
 			);
 
 			const [selectedDurationIndex, setSelectedDurationIndex] = useState(2);
@@ -152,7 +152,7 @@ export const LockLpTokenDialog = wrapBaseDialog(
 							<div className="w-full flex items-center justify-center">
 								<button
 									className="w-full md:w-2/3 h-12 md:h-15 bg-primary-200 rounded-2xl flex justify-center items-center hover:opacity-75 cursor-pointer disabled:opacity-50"
-									disabled={!account.isReadyToSendMsgs || amountConfig.getError() != null}
+									disabled={!account.isReadyToSendMsgs || amountConfig.error != null}
 									onClick={async e => {
 										e.preventDefault();
 
@@ -251,13 +251,7 @@ export const UpgradeLockedLPToSuperfluidDialog = wrapBaseDialog(
 		const { chainStore, queriesStore, accountStore } = useStore();
 
 		const account = accountStore.getAccount(chainStore.current.chainId);
-		const queries = queriesStore.get(chainStore.current.chainId);
-		const amountConfig = useAmountConfig(
-			chainStore,
-			chainStore.current.chainId,
-			account.bech32Address,
-			queries.queryBalances
-		);
+		const amountConfig = useAmountConfig(chainStore, queriesStore, chainStore.current.chainId, account.bech32Address);
 
 		useEffect(() => {
 			amountConfig.setAmount(amount.toDec().toString());
@@ -286,7 +280,7 @@ export const UpgradeLockedLPToSuperfluidDialog = wrapBaseDialog(
 					}
 					amountConfig={amountConfig}
 					checkAmountConfigError={(amountConfig: IAmountConfig) => {
-						const error = amountConfig.getError();
+						const error = amountConfig.error;
 						if (error && error instanceof InsufficientAmountError) {
 							return false;
 						}
@@ -318,7 +312,7 @@ export const LockLpTokenValidatorSelectStageViewInDialog: FunctionComponent<{
 		amountConfig,
 		onSumbit,
 		checkAmountConfigError = (amountConfig: IAmountConfig) => {
-			return amountConfig.getError() != null;
+			return amountConfig.error != null;
 		},
 	}) => {
 		const { chainStore, queriesStore, accountStore } = useStore();
@@ -334,7 +328,7 @@ export const LockLpTokenValidatorSelectStageViewInDialog: FunctionComponent<{
 			() =>
 				activeValidators
 					.filter(validator =>
-						delegations.some(delegation => delegation.validator_address === validator.operator_address)
+						delegations.some(delegation => delegation.delegation.validator_address === validator.operator_address)
 					)
 					.sort((aVal, bVal) => {
 						const aValName = aVal.description.moniker;
@@ -356,7 +350,8 @@ export const LockLpTokenValidatorSelectStageViewInDialog: FunctionComponent<{
 			() =>
 				activeValidators
 					.filter(
-						validator => !delegations.some(delegation => delegation.validator_address === validator.operator_address)
+						validator =>
+							!delegations.some(delegation => delegation.delegation.validator_address === validator.operator_address)
 					)
 					.sort((aVal, bVal) => {
 						const aValName = aVal.description.moniker;
@@ -420,7 +415,7 @@ export const LockLpTokenValidatorSelectStageViewInDialog: FunctionComponent<{
 										activeValidator.operator_address
 									);
 									const isDelegatedValidator = delegations.some(
-										delegation => delegation.validator_address === activeValidator.operator_address
+										delegation => delegation.delegation.validator_address === activeValidator.operator_address
 									);
 									const isSelected = activeValidator.operator_address === selectedValidatorAddress;
 

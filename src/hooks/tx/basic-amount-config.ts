@@ -1,7 +1,7 @@
 import { AmountConfig } from '@keplr-wallet/hooks';
 import { action, computed, makeObservable, observable, override } from 'mobx';
 import { AppCurrency } from '@keplr-wallet/types';
-import { ChainGetter, ObservableQueryBalances } from '@keplr-wallet/stores';
+import { ChainGetter, IQueriesStore } from '@keplr-wallet/stores';
 import { useState } from 'react';
 
 export class BasicAmountConfig extends AmountConfig {
@@ -10,12 +10,12 @@ export class BasicAmountConfig extends AmountConfig {
 
 	constructor(
 		chainGetter: ChainGetter,
+		queriesStore: IQueriesStore,
 		initialChainId: string,
 		sender: string,
-		currency: AppCurrency,
-		queryBalances: ObservableQueryBalances
+		currency: AppCurrency
 	) {
-		super(chainGetter, initialChainId, sender, undefined, queryBalances);
+		super(chainGetter, queriesStore, initialChainId, sender, undefined);
 
 		this._currency = currency;
 
@@ -50,14 +50,13 @@ export class BasicAmountConfig extends AmountConfig {
 
 export const useBasicAmountConfig = (
 	chainGetter: ChainGetter,
+	queriesStore: IQueriesStore,
 	chainId: string,
 	sender: string,
-	currency: AppCurrency,
-	queryBalances: ObservableQueryBalances
+	currency: AppCurrency
 ) => {
-	const [config] = useState(() => new BasicAmountConfig(chainGetter, chainId, sender, currency, queryBalances));
+	const [config] = useState(() => new BasicAmountConfig(chainGetter, queriesStore, chainId, sender, currency));
 	config.setChain(chainId);
-	config.setQueryBalances(queryBalances);
 	config.setSender(sender);
 	config.setCurrency(currency);
 

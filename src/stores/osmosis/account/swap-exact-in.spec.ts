@@ -18,7 +18,7 @@ describe('Test Osmosis Swap Exact Amount In Tx', () => {
 		queriesStore = stores.queriesStore;
 
 		const account = accountStore.getAccount(chainStore.current.chainId);
-		account.broadcastMode = 'block';
+		account.cosmos.broadcastMode = 'block';
 		await waitAccountLoaded(account);
 
 		// And prepare the pool

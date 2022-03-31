@@ -29,13 +29,16 @@ export const PoolSwapDialog = wrapBaseDialog(
 
 		const config = usePoolSwapConfig(
 			chainStore,
+			queriesStore,
 			chainStore.current.chainId,
 			account.bech32Address,
-			queries.queryBalances,
-			poolId,
-			queries.osmosis.queryGammPools
+			poolId
 		);
-		const feeConfig = useFakeFeeConfig(chainStore, chainStore.current.chainId, account.msgOpts.swapExactAmountIn.gas);
+		const feeConfig = useFakeFeeConfig(
+			chainStore,
+			chainStore.current.chainId,
+			account.osmosis.msgOpts.swapExactAmountIn.gas
+		);
 		config.setFeeConfig(feeConfig);
 
 		return (

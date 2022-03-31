@@ -15,7 +15,7 @@ describe('Test Osmosis Exit Pool Tx', () => {
 		accountStore = stores.accountStore;
 
 		const account = accountStore.getAccount(chainStore.current.chainId);
-		account.broadcastMode = 'block';
+		account.cosmos.broadcastMode = 'block';
 		await waitAccountLoaded(account);
 
 		// And prepare the pool

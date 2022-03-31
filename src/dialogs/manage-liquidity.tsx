@@ -1,5 +1,5 @@
 import { TxChainSetter } from '@keplr-wallet/hooks';
-import { ChainGetter, ObservableQueryBalances } from '@keplr-wallet/stores';
+import { ChainGetter, IQueriesStore } from '@keplr-wallet/stores';
 import { AppCurrency, Currency } from '@keplr-wallet/types';
 import { CoinPretty, Dec, DecUtils, Int, IntPretty } from '@keplr-wallet/unit';
 import cn from 'clsx';
@@ -14,13 +14,12 @@ import { MISC } from '../constants';
 import { OSMO_MEDIUM_TX_FEE } from '../constants/fee';
 import { BasicAmountConfig } from '../hooks/tx/basic-amount-config';
 import { useStore } from '../stores';
-import { ObservableQueryGammPoolShare } from '../stores/osmosis/query/pool-share';
-import { ObservableQueryPools } from '../stores/osmosis/query/pools';
 import { wrapBaseDialog } from './base';
 import useWindowSize from 'src/hooks/useWindowSize';
 import { TokenSelect } from 'src/components/SwapToken/TokenSelect';
 import { useBooleanStateWithWindowEvent } from 'src/hooks/useBooleanStateWithWindowEvent';
-import { IconExternalLink, IconCheckBox } from 'src/icons';
+import { IconCheckBox } from 'src/icons';
+import { OsmosisQueries } from 'src/stores/osmosis/query';
 
 //	TODO : edit how the circle renders the border to make gradients work
 const borderImages: Record<string, string> = {
@@ -46,21 +45,17 @@ export class ManageLiquidityConfigBase extends TxChainSetter {
 	@observable
 	protected _sender: string;
 
-	@observable
-	protected _queryPoolShare: ObservableQueryGammPoolShare;
-
 	constructor(
 		chainGetter: ChainGetter,
+		protected readonly queriesStore: IQueriesStore<OsmosisQueries>,
 		initialChainId: string,
 		poolId: string,
-		sender: string,
-		queryPoolShare: ObservableQueryGammPoolShare
+		sender: string
 	) {
 		super(chainGetter, initialChainId);
 
 		this._poolId = poolId;
 		this._sender = sender;
-		this._queryPoolShare = queryPoolShare;
 
 		makeObservable(this);
 	}
@@ -83,23 +78,14 @@ export class ManageLiquidityConfigBase extends TxChainSetter {
 		return this._sender;
 	}
 
-	@action
-	setQueryPoolShare(queryPoolShare: ObservableQueryGammPoolShare) {
-		this._queryPoolShare = queryPoolShare;
-	}
-
 	get poolShare(): CoinPretty {
-		return this._queryPoolShare.getAvailableGammShare(this._sender, this.poolId);
+		return this.queriesStore
+			.get(this.chainId)
+			.osmosis.queryGammPoolShare.getAvailableGammShare(this._sender, this.poolId);
 	}
 }
 
 export class AddLiquidityConfig extends ManageLiquidityConfigBase {
-	@observable.ref
-	protected _queryBalances: ObservableQueryBalances;
-
-	@observable.ref
-	protected _queryPools: ObservableQueryPools;
-
 	@observable.ref
 	protected _shareOutAmount: IntPretty | undefined = undefined;
 
@@ -120,17 +106,13 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 
 	constructor(
 		chainGetter: ChainGetter,
+		queriesStore: IQueriesStore<OsmosisQueries>,
 		initialChainId: string,
 		poolId: string,
-		sender: string,
-		queryPoolShare: ObservableQueryGammPoolShare,
-		queryPools: ObservableQueryPools,
-		queryBalances: ObservableQueryBalances
+		sender: string
 	) {
-		super(chainGetter, initialChainId, poolId, sender, queryPoolShare);
+		super(chainGetter, queriesStore, initialChainId, poolId, sender);
 
-		this._queryPools = queryPools;
-		this._queryBalances = queryBalances;
 		this._sender = sender;
 
 		makeObservable(this);
@@ -151,20 +133,6 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 
 		for (const asset of this.poolAssetConfigs) {
 			asset.setChain(chainId);
-		}
-	}
-
-	@action
-	setQueryPools(queryPools: ObservableQueryPools) {
-		this._queryPools = queryPools;
-	}
-
-	@action
-	setQueryBalances(queryBalances: ObservableQueryBalances) {
-		this._queryBalances = queryBalances;
-
-		for (const asset of this.poolAssetConfigs) {
-			asset.setQueryBalances(queryBalances);
 		}
 	}
 
@@ -257,18 +225,9 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 		}
 	}
 
-	/*
-   TODO: This getter is not flexible.
-         Can't handle the case that the chain changes.
-         Can't handle the case that the pool's currencies changes.
-         Can't handle the case that the reference of chain getter or balance querier.
-         However, above cases don't exist on the current usage.
-         Due to the current architecture of this store, it is hard to handle above cases.
-         Refactor this store in future.
-   */
 	@computed
 	get poolAssetConfigs(): BasicAmountConfig[] {
-		const pool = this._queryPools.getPool(this._poolId);
+		const pool = this.queriesStore.get(this.chainId).osmosis.queryGammPools.getPool(this._poolId);
 		if (!pool) {
 			return [];
 		}
@@ -285,10 +244,10 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 				configs: pool.poolAssets.map(asset => {
 					return new BasicAmountConfig(
 						this.chainGetter,
+						this.queriesStore,
 						this.chainId,
 						this.sender,
-						asset.amount.currency,
-						this._queryBalances
+						asset.amount.currency
 					);
 				}),
 			};
@@ -303,7 +262,7 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 		amount: CoinPretty;
 		currency: Currency;
 	}[] {
-		const pool = this._queryPools.getPool(this._poolId);
+		const pool = this.queriesStore.get(this.chainId).osmosis.queryGammPools.getPool(this._poolId);
 		if (!pool) {
 			return [];
 		}
@@ -327,7 +286,7 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 
 	@computed
 	get totalShare(): IntPretty {
-		const pool = this._queryPools.getPool(this._poolId);
+		const pool = this.queriesStore.get(this.chainId).osmosis.queryGammPools.getPool(this._poolId);
 		if (!pool) {
 			return new IntPretty(new Int(0));
 		}
@@ -344,7 +303,7 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 		const amountConfig = this.poolAssetConfigs[index];
 		amountConfig.setAmount(amount);
 
-		if (amountConfig.getError() == null) {
+		if (amountConfig.error == null) {
 			/*
         share out amount = (token in amount * total share) / pool asset
        */
@@ -419,7 +378,10 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 		}
 
 		const balancePrettyList = this.poolAssetConfigs.map(poolAssetConfig =>
-			this._queryBalances.getQueryBech32Address(this.sender).getBalanceFromCurrency(poolAssetConfig.currency)
+			this.queriesStore
+				.get(this.chainId)
+				.queryBalances.getQueryBech32Address(this.sender)
+				.getBalanceFromCurrency(poolAssetConfig.currency)
 		);
 		if (balancePrettyList.some(balancePretty => balancePretty.toDec().equals(new Dec(0)))) {
 			return this.poolAssetConfigs.forEach(poolAssetConfig => poolAssetConfig.setAmount('0'));
@@ -504,14 +466,15 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 		});
 	}
 
-	readonly getError = computedFn(() => {
+	@computed
+	get error(): Error | undefined {
 		if (this.poolAssetConfigs.length === 0) {
 			return new Error('Not initialized yet');
 		}
 
 		if (this.isSingleAmountIn && this.singleAmountInConfig) {
 			const config = this.singleAmountInConfig;
-			const error = config.getError();
+			const error = config.error;
 			if (error != null) {
 				return error;
 			}
@@ -519,7 +482,7 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 			return;
 		} else {
 			for (const config of this.poolAssetConfigs) {
-				const error = config.getError();
+				const error = config.error;
 				if (error != null) {
 					return error;
 				}
@@ -529,7 +492,7 @@ export class AddLiquidityConfig extends ManageLiquidityConfigBase {
 		if (!this.shareOutAmount || this.shareOutAmount.toDec().lte(new Dec(0))) {
 			return new Error('Calculating the share out amount');
 		}
-	});
+	}
 }
 
 export class RemoveLiquidityConfig extends ManageLiquidityConfigBase {
@@ -538,13 +501,13 @@ export class RemoveLiquidityConfig extends ManageLiquidityConfigBase {
 
 	constructor(
 		chainGetter: ChainGetter,
+		queriesStore: IQueriesStore<OsmosisQueries>,
 		initialChainId: string,
 		poolId: string,
 		sender: string,
-		queryPoolShare: ObservableQueryGammPoolShare,
 		initialPercentage: string
 	) {
-		super(chainGetter, initialChainId, poolId, sender, queryPoolShare);
+		super(chainGetter, queriesStore, initialChainId, poolId, sender);
 
 		this._percentage = initialPercentage;
 
@@ -581,38 +544,25 @@ export const ManageLiquidityDialog = wrapBaseDialog(
 		const account = accountStore.getAccount(chainStore.current.chainId);
 
 		const [addLiquidityConfig] = useState(
-			() =>
-				new AddLiquidityConfig(
-					chainStore,
-					chainStore.current.chainId,
-					poolId,
-					account.bech32Address,
-					queries.osmosis.queryGammPoolShare,
-					queries.osmosis.queryGammPools,
-					queries.queryBalances
-				)
+			() => new AddLiquidityConfig(chainStore, queriesStore, chainStore.current.chainId, poolId, account.bech32Address)
 		);
 		addLiquidityConfig.setChain(chainStore.current.chainId);
 		addLiquidityConfig.setPoolId(poolId);
-		addLiquidityConfig.setQueryPoolShare(queries.osmosis.queryGammPoolShare);
-		addLiquidityConfig.setQueryPools(queries.osmosis.queryGammPools);
-		addLiquidityConfig.setQueryBalances(queries.queryBalances);
 		addLiquidityConfig.setSender(account.bech32Address);
 
 		const [removeLiquidityConfig] = useState(
 			() =>
 				new RemoveLiquidityConfig(
 					chainStore,
+					queriesStore,
 					chainStore.current.chainId,
 					poolId,
 					account.bech32Address,
-					queries.osmosis.queryGammPoolShare,
 					'35'
 				)
 		);
 		removeLiquidityConfig.setChain(chainStore.current.chainId);
 		removeLiquidityConfig.setPoolId(poolId);
-		removeLiquidityConfig.setQueryPoolShare(queries.osmosis.queryGammPoolShare);
 		removeLiquidityConfig.setSender(account.bech32Address);
 
 		return (
@@ -984,7 +934,7 @@ const BottomButton: FunctionComponent<{
 
 	const error = (() => {
 		if (tab === Tabs.ADD) {
-			return addLiquidityConfig.getError();
+			return addLiquidityConfig.error;
 		}
 	})();
 

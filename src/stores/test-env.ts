@@ -1,9 +1,17 @@
 import { ChainInfoWithExplorer, ChainStore } from './chain';
-import { AccountSetBase, AccountStore, QueriesStore } from '@keplr-wallet/stores';
+import {
+	AccountSetBase,
+	AccountStore,
+	QueriesStore,
+	CosmosAccount,
+	CosmwasmAccount,
+	CosmosQueries,
+	CosmwasmQueries,
+} from '@keplr-wallet/stores';
 import { MemoryKVStore } from '@keplr-wallet/common';
 import { autorun } from 'mobx';
-import { AccountWithCosmosAndOsmosis } from './osmosis/account';
-import { QueriesWithCosmosAndOsmosis } from './osmosis/query';
+import { OsmosisAccount } from './osmosis/account';
+import { OsmosisQueries } from './osmosis/query';
 import { MockKeplr } from '@keplr-wallet/provider-mock';
 import { StdTx } from '@cosmjs/launchpad';
 import Axios from 'axios';
@@ -64,8 +72,8 @@ export const TestChainInfos: ChainInfoWithExplorer[] = [
 
 export class RootStore {
 	public readonly chainStore: ChainStore;
-	public readonly accountStore: AccountStore<AccountWithCosmosAndOsmosis>;
-	public readonly queriesStore: QueriesStore<QueriesWithCosmosAndOsmosis>;
+	public readonly accountStore: AccountStore<[CosmosAccount, CosmwasmAccount, OsmosisAccount]>;
+	public readonly queriesStore: QueriesStore<[CosmosQueries, CosmwasmQueries, OsmosisQueries]>;
 
 	constructor() {
 		const mockKeplr = new MockKeplr(
@@ -121,10 +129,9 @@ export class RootStore {
 		this.queriesStore = new QueriesStore(
 			new MemoryKVStore('test_store_web_queries'),
 			this.chainStore,
-			async () => {
-				return mockKeplr;
-			},
-			QueriesWithCosmosAndOsmosis
+			CosmosQueries.use(),
+			CosmwasmQueries.use(),
+			OsmosisQueries.use()
 		);
 		this.accountStore = new AccountStore(
 			{
@@ -132,20 +139,23 @@ export class RootStore {
 				addEventListener: () => {},
 				removeEventListener: () => {},
 			},
-			AccountWithCosmosAndOsmosis,
 			this.chainStore,
-			this.queriesStore,
-			{
-				defaultOpts: {
+			() => {
+				return {
 					suggestChain: false,
 					prefetching: true,
 					autoInit: true,
 					getKeplr: async () => {
 						return mockKeplr;
 					},
-					wsObject: WebSocket as any,
-				},
-			}
+				};
+			},
+			CosmosAccount.use({
+				queriesStore: this.queriesStore,
+				wsObject: WebSocket as any,
+			}),
+			CosmwasmAccount.use({ queriesStore: this.queriesStore }),
+			OsmosisAccount.use({ queriesStore: this.queriesStore })
 		);
 	}
 }
@@ -262,7 +272,7 @@ export async function initLocalnet(): Promise<void> {
 	}
 }
 
-export async function waitAccountLoaded(account: AccountSetBase<unknown, unknown>) {
+export async function waitAccountLoaded(account: AccountSetBase) {
 	if (account.isReadyToSendMsgs) {
 		return;
 	}

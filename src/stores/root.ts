@@ -1,11 +1,16 @@
-import { IBCCurrencyRegsitrar, QueriesStore } from '@keplr-wallet/stores';
+import {
+	CosmosAccount,
+	CosmosQueries,
+	CosmwasmAccount,
+	CosmwasmQueries,
+	IBCCurrencyRegsitrar,
+	QueriesStore,
+} from '@keplr-wallet/stores';
 import { AccountStore } from '@keplr-wallet/stores';
 import { DenomHelper, IndexedDBKVStore, LocalKVStore } from '@keplr-wallet/common';
 import { ChainInfoWithExplorer, ChainStore } from './chain';
-import { AppCurrency, ChainInfo, Keplr } from '@keplr-wallet/types';
+import { AppCurrency, ChainInfo } from '@keplr-wallet/types';
 import { EmbedChainInfos, IBCAssetInfos } from '../config';
-import { QueriesWithCosmosAndOsmosis } from './osmosis/query';
-import { AccountWithCosmosAndOsmosis } from './osmosis/account';
 import { LayoutStore } from './layout';
 import { GammSwapManager } from './osmosis/swap';
 import { LPCurrencyRegistrar } from './osmosis/currency-registrar';
@@ -17,11 +22,13 @@ import { isSlippageError } from '../utils/tx';
 import { prettifyTxError } from 'src/stores/prettify-tx-error';
 import { KeplrWalletConnectV1 } from '@keplr-wallet/wc-client';
 import { ConnectWalletManager } from 'src/dialogs/connect-wallet';
+import { OsmosisQueries } from './osmosis/query';
+import { OsmosisAccount } from './osmosis/account';
 
 export class RootStore {
 	public readonly chainStore: ChainStore;
-	public readonly accountStore: AccountStore<AccountWithCosmosAndOsmosis>;
-	public readonly queriesStore: QueriesStore<QueriesWithCosmosAndOsmosis>;
+	public readonly queriesStore: QueriesStore<[CosmosQueries, CosmwasmQueries, OsmosisQueries]>;
+	public readonly accountStore: AccountStore<[CosmosAccount, CosmwasmAccount, OsmosisAccount]>;
 	public readonly priceStore: PoolIntermediatePriceStore;
 
 	public readonly ibcTransferHistoryStore: IBCTransferHistoryStore;
@@ -41,18 +48,16 @@ export class RootStore {
 		this.queriesStore = new QueriesStore(
 			new IndexedDBKVStore('store_web_queries'),
 			this.chainStore,
-			this.connectWalletManager.getKeplr,
-			QueriesWithCosmosAndOsmosis
+			CosmosQueries.use(),
+			CosmwasmQueries.use(),
+			OsmosisQueries.use()
 		);
 
-		this.accountStore = new AccountStore<AccountWithCosmosAndOsmosis>(
+		this.accountStore = new AccountStore(
 			window,
-			AccountWithCosmosAndOsmosis,
 			this.chainStore,
-			this.queriesStore,
-			{
-				defaultOpts: {
-					prefetching: false,
+			() => {
+				return {
 					suggestChain: true,
 					autoInit: false,
 					getKeplr: this.connectWalletManager.getKeplr,
@@ -96,58 +101,72 @@ export class RootStore {
 
 						await keplr.experimentalSuggestChain(copied);
 					},
+				};
+			},
+			CosmosAccount.use({
+				queriesStore: this.queriesStore,
+				msgOptsCreator: () => {
+					return { ibcTransfer: { gas: 130000 } };
 				},
-				chainOpts: this.chainStore.chainInfos.map(chainInfo => {
-					return {
-						chainId: chainInfo.chainId,
-						msgOpts: { ibcTransfer: { gas: 130000 } },
-						preTxEvents: {
-							onBroadcastFailed: (e?: Error) => {
-								let message: string = 'Unknown error';
-								if (e instanceof Error) {
-									message = e.message;
-								} else if (typeof e === 'string') {
-									message = e;
-								}
+				preTxEvents: {
+					onBroadcastFailed: (chainId: string, e?: Error) => {
+						if (this.chainStore.hasChain(chainId)) {
+							const chainInfo = this.chainStore.getChain(chainId);
 
-								try {
-									message = prettifyTxError(message, chainInfo.currencies);
-								} catch (e) {
-									console.log(e);
-								}
+							let message: string = 'Unknown error';
+							if (e instanceof Error) {
+								message = e.message;
+							} else if (typeof e === 'string') {
+								message = e;
+							}
 
-								displayToast(TToastType.TX_FAILED, {
-									message,
-								});
-							},
-							onBroadcasted: (txHash: Uint8Array) => {
-								displayToast(TToastType.TX_BROADCASTING);
-							},
-							onFulfill: (tx: any) => {
-								if (tx.code) {
-									let message: string = tx.log;
+							try {
+								message = prettifyTxError(message, chainInfo.currencies);
+							} catch (e) {
+								console.log(e);
+							}
 
-									if (isSlippageError(tx)) {
-										message = 'Swap failed. Liquidity may not be sufficient. Try adjusting the allowed slippage.';
-									} else {
-										try {
-											message = prettifyTxError(message, chainInfo.currencies);
-										} catch (e) {
-											console.log(e);
-										}
-									}
+							displayToast(TToastType.TX_FAILED, {
+								message,
+							});
+						}
+					},
+					onBroadcasted: (chainId: string, txHash: Uint8Array) => {
+						displayToast(TToastType.TX_BROADCASTING);
+					},
+					onFulfill: (chainId: string, tx: any) => {
+						if (this.chainStore.hasChain(chainId)) {
+							const chainInfo = this.chainStore.getChain(chainId);
 
-									displayToast(TToastType.TX_FAILED, { message });
+							if (tx.code) {
+								let message: string = tx.log;
+
+								if (isSlippageError(tx)) {
+									message = 'Swap failed. Liquidity may not be sufficient. Try adjusting the allowed slippage.';
 								} else {
-									displayToast(TToastType.TX_SUCCESSFUL, {
-										customLink: chainInfo.raw.explorerUrlToTx.replace('{txHash}', tx.hash.toUpperCase()),
-									});
+									try {
+										message = prettifyTxError(message, chainInfo.currencies);
+									} catch (e) {
+										console.log(e);
+									}
 								}
-							},
-						},
-					};
-				}),
-			}
+
+								displayToast(TToastType.TX_FAILED, { message });
+							} else {
+								displayToast(TToastType.TX_SUCCESSFUL, {
+									customLink: chainInfo.raw.explorerUrlToTx.replace('{txHash}', tx.hash.toUpperCase()),
+								});
+							}
+						}
+					},
+				},
+			}),
+			CosmwasmAccount.use({
+				queriesStore: this.queriesStore,
+			}),
+			OsmosisAccount.use({
+				queriesStore: this.queriesStore,
+			})
 		);
 		this.connectWalletManager.setAccountStore(this.accountStore);
 

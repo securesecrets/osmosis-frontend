@@ -74,7 +74,7 @@ export const SwapButton = observer(function SwapButton({ config, close }: SwapBu
 	}
 
 	return (
-		<CtaButton onClick={handleSwapButtonClicked} disabled={!account.isReadyToSendMsgs || config.getError() != null}>
+		<CtaButton onClick={handleSwapButtonClicked} disabled={!account.isReadyToSendMsgs || config.error != null}>
 			{account.isSendingMsg === 'swapExactAmountIn' ? (
 				<Spinner />
 			) : (

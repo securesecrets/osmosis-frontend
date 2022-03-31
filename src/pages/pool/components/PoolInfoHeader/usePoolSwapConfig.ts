@@ -1,16 +1,13 @@
 import { AmountConfig } from '@keplr-wallet/hooks';
-import { ChainGetter } from '@keplr-wallet/stores';
-import { ObservableQueryBalances } from '@keplr-wallet/stores/build/query/balances';
+import { ChainGetter, IQueriesStore } from '@keplr-wallet/stores';
 import { AppCurrency } from '@keplr-wallet/types';
 import { CoinPretty, Dec, Int, IntPretty } from '@keplr-wallet/unit';
 import { action, computed, makeObservable, observable, override } from 'mobx';
 import { useState } from 'react';
 import { ObservableQueryPools } from 'src/stores/osmosis/query/pools';
+import { OsmosisQueries } from 'src/stores/osmosis/query';
 
 export class PoolSwapConfig extends AmountConfig {
-	@observable.ref
-	protected _queryPools: ObservableQueryPools;
-
 	@observable
 	protected inCurrencyMinimalDenom: string = '';
 	@observable
@@ -37,16 +34,14 @@ export class PoolSwapConfig extends AmountConfig {
 
 	constructor(
 		chainGetter: ChainGetter,
+		protected readonly queriesStore: IQueriesStore<OsmosisQueries>,
 		initialChainId: string,
 		sender: string,
-		queryBalances: ObservableQueryBalances,
-		poolId: string,
-		queryPools: ObservableQueryPools
+		poolId: string
 	) {
-		super(chainGetter, initialChainId, sender, undefined, queryBalances);
+		super(chainGetter, queriesStore, initialChainId, sender, undefined);
 
 		this._poolId = poolId;
-		this._queryPools = queryPools;
 
 		makeObservable(this);
 	}
@@ -59,7 +54,7 @@ export class PoolSwapConfig extends AmountConfig {
 	}
 
 	get queryPools(): ObservableQueryPools {
-		return this._queryPools;
+		return this.queriesStore.get(this.chainId).osmosis.queryGammPools;
 	}
 
 	get pool() {
@@ -134,8 +129,9 @@ export class PoolSwapConfig extends AmountConfig {
 	@override
 	get amount(): string {
 		if (this.ratio != null) {
-			const balance = this.queryBalances
-				.getQueryBech32Address(this.sender)
+			const balance = this.queriesStore
+				.get(this.chainId)
+				.queryBalances.getQueryBech32Address(this.sender)
 				.getBalanceFromCurrency(this.sendCurrency)
 				.mul(new Dec(this.ratio.toString()));
 
@@ -198,7 +194,7 @@ export class PoolSwapConfig extends AmountConfig {
 			return new CoinPretty(this.outCurrency, new Dec(0));
 		}
 
-		if (this.getError() != null) {
+		if (this.error != null) {
 			return new CoinPretty(this.outCurrency, new Dec(0));
 		}
 
@@ -245,7 +241,7 @@ export class PoolSwapConfig extends AmountConfig {
 			return new IntPretty(new Int(0));
 		}
 
-		if (this.getError() != null) {
+		if (this.error != null) {
 			return new IntPretty(new Int(0));
 		}
 
@@ -267,11 +263,6 @@ export class PoolSwapConfig extends AmountConfig {
 	@action
 	setPoolId(poolId: string) {
 		this._poolId = poolId;
-	}
-
-	@action
-	setQueryPools(queryPools: ObservableQueryPools) {
-		this._queryPools = queryPools;
 	}
 
 	@action
@@ -310,18 +301,15 @@ export class PoolSwapConfig extends AmountConfig {
 
 export const usePoolSwapConfig = (
 	chainGetter: ChainGetter,
+	queriesStore: IQueriesStore<OsmosisQueries>,
 	chainId: string,
 	sender: string,
-	queryBalances: ObservableQueryBalances,
-	poolId: string,
-	queryPools: ObservableQueryPools
+	poolId: string
 ) => {
-	const [config] = useState(() => new PoolSwapConfig(chainGetter, chainId, sender, queryBalances, poolId, queryPools));
+	const [config] = useState(() => new PoolSwapConfig(chainGetter, queriesStore, chainId, sender, poolId));
 	config.setChain(chainId);
 	config.setSender(sender);
-	config.setQueryBalances(queryBalances);
 	config.setPoolId(poolId);
-	config.setQueryPools(queryPools);
 
 	return config;
 };

@@ -4,31 +4,51 @@ import {
 	MsgOpt,
 	AccountSetBase,
 	CosmosMsgOpts,
-	HasCosmosQueries,
-	AccountWithCosmos,
 	QueriesSetBase,
 	AccountSetOpts,
 	CosmosAccount,
-	HasCosmosAccount,
-	HasCosmwasmAccount,
-	HasCosmwasmQueries,
 	CosmwasmAccount,
-	AccountWithCosmwasm,
 	CosmwasmMsgOpts,
+	IQueriesStore,
+	AccountSetBaseSuper,
 } from '@keplr-wallet/stores';
 import { Coin, Dec, DecUtils } from '@keplr-wallet/unit';
 import { Currency, KeplrSignOptions } from '@keplr-wallet/types';
-import { DeepReadonly } from 'utility-types';
-import { HasOsmosisQueries } from '../query';
+import { DeepPartial, DeepReadonly } from 'utility-types';
 import deepmerge from 'deepmerge';
 import { QueriedPoolBase } from '../query/pool';
 import { osmosis } from '../../../proto';
 import Long from 'long';
 import { StdFee } from '@cosmjs/launchpad';
+import { OsmosisQueries } from '../query';
 
-export interface HasOsmosisAccount {
-	osmosis: DeepReadonly<OsmosisAccount>;
+export interface OsmosisAccount {
+	osmosis: OsmosisAccountImpl;
 }
+
+export const OsmosisAccount = {
+	use(options: {
+		msgOptsCreator?: (chainId: string) => DeepPartial<OsmosisMsgOpts> | undefined;
+		queriesStore: IQueriesStore<OsmosisQueries>;
+	}): (base: AccountSetBaseSuper & CosmosAccount, chainGetter: ChainGetter, chainId: string) => OsmosisAccount {
+		return (base, chainGetter, chainId) => {
+			const msgOptsFromCreator = options.msgOptsCreator ? options.msgOptsCreator(chainId) : undefined;
+
+			return {
+				osmosis: new OsmosisAccountImpl(
+					base,
+					chainGetter,
+					chainId,
+					options.queriesStore,
+					deepmerge<OsmosisMsgOpts, DeepPartial<OsmosisMsgOpts>>(
+						defaultOsmosisMsgOpts,
+						msgOptsFromCreator ? msgOptsFromCreator : {}
+					)
+				),
+			};
+		};
+	},
+};
 
 export interface OsmosisMsgOpts {
 	readonly createPool: MsgOpt;
@@ -52,122 +72,79 @@ export interface OsmosisMsgOpts {
 	readonly unlockPeriodLock: MsgOpt;
 }
 
-export class AccountWithCosmosAndOsmosis
-	extends AccountSetBase<
-		CosmosMsgOpts & OsmosisMsgOpts & CosmwasmMsgOpts,
-		HasCosmosQueries & HasOsmosisQueries & HasCosmwasmQueries
-	>
-	implements HasCosmosAccount, HasOsmosisAccount, HasCosmwasmAccount {
-	public readonly cosmos: DeepReadonly<CosmosAccount>;
-	public readonly osmosis: DeepReadonly<OsmosisAccount>;
-	public readonly cosmwasm: DeepReadonly<CosmwasmAccount>;
+export const defaultOsmosisMsgOpts: OsmosisMsgOpts = {
+	createPool: {
+		type: 'osmosis/gamm/create-balancer-pool',
+		gas: 350000,
+	},
+	joinPool: {
+		type: 'osmosis/gamm/join-pool',
+		gas: 240000,
+		shareCoinDecimals: 18,
+	},
+	joinSwapExternAmountIn: {
+		type: 'osmosis/gamm/join-swap-extern-amount-in',
+		gas: 140000,
+		shareCoinDecimals: 18,
+	},
+	exitPool: {
+		type: 'osmosis/gamm/exit-pool',
+		gas: 140000,
+		shareCoinDecimals: 18,
+	},
+	swapExactAmountIn: {
+		type: 'osmosis/gamm/swap-exact-amount-in',
+		gas: 250000,
+	},
+	swapExactAmountOut: {
+		type: 'osmosis/gamm/swap-exact-amount-out',
+		gas: 250000,
+	},
+	lockTokens: {
+		type: 'osmosis/lockup/lock-tokens',
+		gas: 450000,
+	},
+	superfluidDelegate: {
+		type: 'osmosis/superfluid-delegate',
+		gas: 500000,
+	},
+	lockAndSuperfluidDelegate: {
+		type: 'osmosis/lock-and-superfluid-delegate',
+		gas: 500000,
+	},
+	beginUnlocking: {
+		type: 'osmosis/lockup/begin-unlock-period-lock',
+		// Gas per msg
+		gas: 140000,
+	},
+	unlockPeriodLock: {
+		type: 'osmosis/lockup/unlock-period-lock',
+		// Gas per msg
+		gas: 140000,
+	},
+	superfluidUndelegate: {
+		type: 'osmosis/superfluid-undelegate',
+		gas: 300000,
+	},
+	superfluidUnbondLock: {
+		type: 'osmosis/superfluid-unbond-lock',
+		// Gas per msg
+		gas: 300000,
+	},
+};
 
-	static readonly defaultMsgOpts: CosmosMsgOpts & OsmosisMsgOpts & CosmwasmMsgOpts = deepmerge(
-		AccountWithCosmos.defaultMsgOpts,
-		deepmerge(AccountWithCosmwasm.defaultMsgOpts, {
-			createPool: {
-				type: 'osmosis/gamm/create-balancer-pool',
-				gas: 350000,
-			},
-			joinPool: {
-				type: 'osmosis/gamm/join-pool',
-				gas: 240000,
-				shareCoinDecimals: 18,
-			},
-			joinSwapExternAmountIn: {
-				type: 'osmosis/gamm/join-swap-extern-amount-in',
-				gas: 140000,
-				shareCoinDecimals: 18,
-			},
-			exitPool: {
-				type: 'osmosis/gamm/exit-pool',
-				gas: 140000,
-				shareCoinDecimals: 18,
-			},
-			swapExactAmountIn: {
-				type: 'osmosis/gamm/swap-exact-amount-in',
-				gas: 250000,
-			},
-			swapExactAmountOut: {
-				type: 'osmosis/gamm/swap-exact-amount-out',
-				gas: 250000,
-			},
-			lockTokens: {
-				type: 'osmosis/lockup/lock-tokens',
-				gas: 450000,
-			},
-			superfluidDelegate: {
-				type: 'osmosis/superfluid-delegate',
-				gas: 500000,
-			},
-			lockAndSuperfluidDelegate: {
-				type: 'osmosis/lock-and-superfluid-delegate',
-				gas: 500000,
-			},
-			beginUnlocking: {
-				type: 'osmosis/lockup/begin-unlock-period-lock',
-				// Gas per msg
-				gas: 140000,
-			},
-			unlockPeriodLock: {
-				type: 'osmosis/lockup/unlock-period-lock',
-				// Gas per msg
-				gas: 140000,
-			},
-			superfluidUndelegate: {
-				type: 'osmosis/superfluid-undelegate',
-				gas: 300000,
-			},
-			superfluidUnbondLock: {
-				type: 'osmosis/superfluid-unbond-lock',
-				// Gas per msg
-				gas: 300000,
-			},
-		})
-	);
-
+export class OsmosisAccountImpl {
 	constructor(
-		protected readonly eventListener: {
-			addEventListener: (type: string, fn: () => unknown) => void;
-			removeEventListener: (type: string, fn: () => unknown) => void;
-		},
+		protected readonly base: AccountSetBase & CosmosAccount,
 		protected readonly chainGetter: ChainGetter,
 		protected readonly chainId: string,
-		protected readonly queriesStore: QueriesStore<
-			QueriesSetBase & HasCosmosQueries & HasOsmosisQueries & HasCosmwasmQueries
-		>,
-		protected readonly opts: AccountSetOpts<CosmosMsgOpts & OsmosisMsgOpts & CosmwasmMsgOpts>
-	) {
-		super(eventListener, chainGetter, chainId, queriesStore, opts);
-
-		this.cosmos = new CosmosAccount(
-			this as AccountSetBase<CosmosMsgOpts, HasCosmosQueries>,
-			chainGetter,
-			chainId,
-			queriesStore
-		);
-		this.osmosis = new OsmosisAccount(
-			this as AccountSetBase<OsmosisMsgOpts, HasOsmosisQueries>,
-			chainGetter,
-			chainId,
-			queriesStore
-		);
-		this.cosmwasm = new CosmwasmAccount(
-			this as AccountSetBase<CosmwasmMsgOpts, HasCosmwasmQueries>,
-			chainGetter,
-			chainId,
-			queriesStore
-		);
-	}
-}
-
-export class OsmosisAccount {
-	constructor(
-		protected readonly base: AccountSetBase<OsmosisMsgOpts, HasOsmosisQueries>,
-		protected readonly chainGetter: ChainGetter,
-		protected readonly chainId: string,
-		protected readonly queriesStore: QueriesStore<QueriesSetBase & HasOsmosisQueries>
+		protected readonly queriesStore: IQueriesStore<OsmosisQueries>,
+		protected readonly _msgOpts: OsmosisMsgOpts
 	) {}
+
+	get msgOpts(): OsmosisMsgOpts {
+		return this._msgOpts;
+	}
 
 	protected changeDecStringToProtoBz(decStr: string): string {
 		let r = decStr;
@@ -224,7 +201,7 @@ export class OsmosisAccount {
 		}
 
 		const msg = {
-			type: this.base.msgOpts.createPool.type,
+			type: this.msgOpts.createPool.type,
 			value: {
 				sender: this.base.bech32Address,
 				poolParams,
@@ -233,7 +210,7 @@ export class OsmosisAccount {
 			},
 		};
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'createPool',
 			{
 				aminoMsgs: [msg],
@@ -255,7 +232,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: this.base.msgOpts.createPool.gas.toString(),
+				gas: this.msgOpts.createPool.gas.toString(),
 			},
 			undefined,
 			tx => {
@@ -287,7 +264,7 @@ export class OsmosisAccount {
 	) {
 		const queries = this.queries;
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'joinPool',
 			async () => {
 				const queryPool = queries.osmosis.queryGammPools.getObservableQueryPool(poolId);
@@ -300,7 +277,7 @@ export class OsmosisAccount {
 
 				const maxSlippageDec = new Dec(maxSlippage).quo(DecUtils.getPrecisionDec(2));
 
-				const estimated = pool.estimateJoinSwap(shareOutAmount, this.base.msgOpts.joinPool.shareCoinDecimals);
+				const estimated = pool.estimateJoinSwap(shareOutAmount, this.msgOpts.joinPool.shareCoinDecimals);
 
 				const tokenInMaxs = maxSlippageDec.equals(new Dec(0))
 					? null
@@ -319,12 +296,12 @@ export class OsmosisAccount {
 					  });
 
 				const msg = {
-					type: this.base.msgOpts.joinPool.type,
+					type: this.msgOpts.joinPool.type,
 					value: {
 						sender: this.base.bech32Address,
 						poolId,
 						shareOutAmount: new Dec(shareOutAmount)
-							.mul(DecUtils.getPrecisionDec(this.base.msgOpts.joinPool.shareCoinDecimals))
+							.mul(DecUtils.getPrecisionDec(this.msgOpts.joinPool.shareCoinDecimals))
 							.truncate()
 							.toString(),
 						tokenInMaxs,
@@ -349,7 +326,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: this.base.msgOpts.joinPool.gas.toString(),
+				gas: this.msgOpts.joinPool.gas.toString(),
 			},
 			undefined,
 			tx => {
@@ -382,7 +359,7 @@ export class OsmosisAccount {
 	) {
 		const queries = this.queries;
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'joinPool',
 			async () => {
 				const queryPool = queries.osmosis.queryGammPools.getObservableQueryPool(poolId);
@@ -393,7 +370,7 @@ export class OsmosisAccount {
 					throw new Error('Unknown pool');
 				}
 
-				const estimated = pool.estimateJoinSwapExternAmountIn(tokenIn, this.base.msgOpts.joinPool.shareCoinDecimals);
+				const estimated = pool.estimateJoinSwapExternAmountIn(tokenIn, this.msgOpts.joinPool.shareCoinDecimals);
 
 				const amount = new Dec(tokenIn.amount).mul(DecUtils.getPrecisionDec(tokenIn.currency.coinDecimals)).truncate();
 				const coin = new Coin(tokenIn.currency.coinMinimalDenom, amount);
@@ -405,7 +382,7 @@ export class OsmosisAccount {
 					.truncate();
 
 				const msg = {
-					type: this.base.msgOpts.joinSwapExternAmountIn.type,
+					type: this.msgOpts.joinSwapExternAmountIn.type,
 					value: {
 						sender: this.base.bech32Address,
 						poolId,
@@ -435,7 +412,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: this.base.msgOpts.joinPool.gas.toString(),
+				gas: this.msgOpts.joinPool.gas.toString(),
 			},
 			undefined,
 			tx => {
@@ -473,7 +450,7 @@ export class OsmosisAccount {
 	) {
 		const queries = this.queries;
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'swapExactAmountIn',
 			async () => {
 				const pools: QueriedPoolBase[] = [];
@@ -490,7 +467,7 @@ export class OsmosisAccount {
 				}
 
 				const msg = QueriedPoolBase.makeMultihopSwapExactAmountInMsg(
-					this.base.msgOpts.swapExactAmountIn,
+					this.msgOpts.swapExactAmountIn,
 					this.base.bech32Address,
 					tokenIn,
 					pools.map((pool, i) => {
@@ -525,7 +502,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: stdFee.amount ?? [],
-				gas: stdFee.gas ?? (this.base.msgOpts.swapExactAmountIn.gas * Math.max(routes.length, 1)).toString(),
+				gas: stdFee.gas ?? (this.msgOpts.swapExactAmountIn.gas * Math.max(routes.length, 1)).toString(),
 			},
 			signOptions,
 			tx => {
@@ -568,7 +545,7 @@ export class OsmosisAccount {
 	) {
 		const queries = this.queries;
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'swapExactAmountIn',
 			async () => {
 				const queryPool = queries.osmosis.queryGammPools.getObservableQueryPool(poolId);
@@ -580,7 +557,7 @@ export class OsmosisAccount {
 				}
 
 				const msg = pool.makeSwapExactAmountInMsg(
-					this.base.msgOpts.swapExactAmountIn,
+					this.msgOpts.swapExactAmountIn,
 					this.base.bech32Address,
 					tokenIn,
 					tokenOutCurrency,
@@ -610,7 +587,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: stdFee.amount ?? [],
-				gas: stdFee.gas ?? this.base.msgOpts.swapExactAmountIn.gas.toString(),
+				gas: stdFee.gas ?? this.msgOpts.swapExactAmountIn.gas.toString(),
 			},
 			signOptions,
 			tx => {
@@ -649,7 +626,7 @@ export class OsmosisAccount {
 	) {
 		const queries = this.queries;
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'swapExactAmountOut',
 			async () => {
 				const queryPool = queries.osmosis.queryGammPools.getObservableQueryPool(poolId);
@@ -661,7 +638,7 @@ export class OsmosisAccount {
 				}
 
 				const msg = pool.makeSwapExactAmountOutMsg(
-					this.base.msgOpts.swapExactAmountOut,
+					this.msgOpts.swapExactAmountOut,
 					this.base.bech32Address,
 					tokenInCurrency,
 					tokenOut,
@@ -691,7 +668,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: this.base.msgOpts.swapExactAmountIn.gas.toString(),
+				gas: this.msgOpts.swapExactAmountIn.gas.toString(),
 			},
 			undefined,
 			tx => {
@@ -726,7 +703,7 @@ export class OsmosisAccount {
 	) {
 		const queries = this.queries;
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'exitPool',
 			async () => {
 				const queryPool = queries.osmosis.queryGammPools.getObservableQueryPool(poolId);
@@ -737,7 +714,7 @@ export class OsmosisAccount {
 					throw new Error('Unknown pool');
 				}
 
-				const estimated = pool.estimateExitSwap(shareInAmount, this.base.msgOpts.exitPool.shareCoinDecimals);
+				const estimated = pool.estimateExitSwap(shareInAmount, this.msgOpts.exitPool.shareCoinDecimals);
 
 				const maxSlippageDec = new Dec(maxSlippage).quo(DecUtils.getPrecisionDec(2));
 
@@ -756,12 +733,12 @@ export class OsmosisAccount {
 					  });
 
 				const msg = {
-					type: this.base.msgOpts.exitPool.type,
+					type: this.msgOpts.exitPool.type,
 					value: {
 						sender: this.base.bech32Address,
 						poolId: pool.id,
 						shareInAmount: new Dec(shareInAmount)
-							.mul(DecUtils.getPrecisionDec(this.base.msgOpts.exitPool.shareCoinDecimals))
+							.mul(DecUtils.getPrecisionDec(this.msgOpts.exitPool.shareCoinDecimals))
 							.truncate()
 							.toString(),
 						tokenOutMins,
@@ -786,7 +763,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: this.base.msgOpts.exitPool.gas.toString(),
+				gas: this.msgOpts.exitPool.gas.toString(),
 			},
 			undefined,
 			tx => {
@@ -832,7 +809,7 @@ export class OsmosisAccount {
 		});
 
 		const msg = {
-			type: this.base.msgOpts.lockTokens.type,
+			type: this.msgOpts.lockTokens.type,
 			value: {
 				owner: this.base.bech32Address,
 				// Duration should be encodec as nana sec.
@@ -841,7 +818,7 @@ export class OsmosisAccount {
 			},
 		};
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'lockTokens',
 			{
 				aminoMsgs: [msg],
@@ -862,7 +839,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: this.base.msgOpts.lockTokens.gas.toString(),
+				gas: this.msgOpts.lockTokens.gas.toString(),
 			},
 			undefined,
 			tx => {
@@ -893,7 +870,7 @@ export class OsmosisAccount {
 	) {
 		const msgs = lockIds.map(lockId => {
 			return {
-				type: this.base.msgOpts.superfluidDelegate.type,
+				type: this.msgOpts.superfluidDelegate.type,
 				value: {
 					sender: this.base.bech32Address,
 					lock_id: lockId,
@@ -913,7 +890,7 @@ export class OsmosisAccount {
 			};
 		});
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'superfluidDelegate',
 			{
 				aminoMsgs: msgs,
@@ -922,7 +899,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: this.base.msgOpts.lockAndSuperfluidDelegate.gas.toString(),
+				gas: this.msgOpts.lockAndSuperfluidDelegate.gas.toString(),
 			},
 			undefined,
 			tx => {
@@ -960,7 +937,7 @@ export class OsmosisAccount {
 		});
 
 		const msg = {
-			type: this.base.msgOpts.lockAndSuperfluidDelegate.type,
+			type: this.msgOpts.lockAndSuperfluidDelegate.type,
 			value: {
 				sender: this.base.bech32Address,
 				coins: primitiveTokens,
@@ -968,7 +945,7 @@ export class OsmosisAccount {
 			},
 		};
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'lockAndSuperfluidDelegate',
 			{
 				aminoMsgs: [msg],
@@ -986,7 +963,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: this.base.msgOpts.lockAndSuperfluidDelegate.gas.toString(),
+				gas: this.msgOpts.lockAndSuperfluidDelegate.gas.toString(),
 			},
 			undefined,
 			tx => {
@@ -1012,7 +989,7 @@ export class OsmosisAccount {
 	async sendBeginUnlockingMsg(lockIds: string[], memo: string = '', onFulfill?: (tx: any) => void) {
 		const msgs = lockIds.map(lockId => {
 			return {
-				type: this.base.msgOpts.beginUnlocking.type,
+				type: this.msgOpts.beginUnlocking.type,
 				value: {
 					owner: this.base.bech32Address,
 					// XXX: 얘는 어째서인지 소문자가 아님 ㅋ;
@@ -1032,7 +1009,7 @@ export class OsmosisAccount {
 			};
 		});
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'beginUnlocking',
 			{
 				aminoMsgs: msgs,
@@ -1041,7 +1018,7 @@ export class OsmosisAccount {
 			memo,
 			{
 				amount: [],
-				gas: (msgs.length * this.base.msgOpts.beginUnlocking.gas).toString(),
+				gas: (msgs.length * this.msgOpts.beginUnlocking.gas).toString(),
 			},
 			undefined,
 			tx => {
@@ -1076,7 +1053,7 @@ export class OsmosisAccount {
 		for (const lock of locks) {
 			if (!lock.isSyntheticLock) {
 				msgs.push({
-					type: this.base.msgOpts.beginUnlocking.type,
+					type: this.msgOpts.beginUnlocking.type,
 					value: {
 						owner: this.base.bech32Address,
 						// XXX: 얘는 어째서인지 소문자가 아님 ㅋ;
@@ -1087,14 +1064,14 @@ export class OsmosisAccount {
 			} else {
 				msgs.push(
 					{
-						type: this.base.msgOpts.superfluidUndelegate.type,
+						type: this.msgOpts.superfluidUndelegate.type,
 						value: {
 							sender: this.base.bech32Address,
 							lock_id: lock.lockId,
 						},
 					},
 					{
-						type: this.base.msgOpts.superfluidUnbondLock.type,
+						type: this.msgOpts.superfluidUnbondLock.type,
 						value: {
 							sender: this.base.bech32Address,
 							lock_id: lock.lockId,
@@ -1109,7 +1086,7 @@ export class OsmosisAccount {
 		let numSuperfluidUnbondLock = 0;
 
 		const protoMsgs = msgs.map(msg => {
-			if (msg.type === this.base.msgOpts.beginUnlocking.type && msg.value.ID) {
+			if (msg.type === this.msgOpts.beginUnlocking.type && msg.value.ID) {
 				numBeginUnlocking++;
 				return {
 					type_url: '/osmosis.lockup.MsgBeginUnlocking',
@@ -1118,7 +1095,7 @@ export class OsmosisAccount {
 						ID: Long.fromString(msg.value.ID),
 					}).finish(),
 				};
-			} else if (msg.type === this.base.msgOpts.superfluidUndelegate.type && msg.value.lock_id) {
+			} else if (msg.type === this.msgOpts.superfluidUndelegate.type && msg.value.lock_id) {
 				numSuperfluidUndelegate++;
 				return {
 					type_url: '/osmosis.superfluid.MsgSuperfluidUndelegate',
@@ -1127,7 +1104,7 @@ export class OsmosisAccount {
 						lockId: Long.fromString(msg.value.lock_id),
 					}).finish(),
 				};
-			} else if (msg.type === this.base.msgOpts.superfluidUnbondLock.type && msg.value.lock_id) {
+			} else if (msg.type === this.msgOpts.superfluidUnbondLock.type && msg.value.lock_id) {
 				numSuperfluidUnbondLock++;
 				return {
 					type_url: '/osmosis.superfluid.MsgSuperfluidUnbondLock',
@@ -1141,7 +1118,7 @@ export class OsmosisAccount {
 			}
 		});
 
-		await this.base.sendMsgs(
+		await this.base.cosmos.sendMsgs(
 			'beginUnlocking',
 			{
 				aminoMsgs: msgs,
@@ -1151,9 +1128,9 @@ export class OsmosisAccount {
 			{
 				amount: [],
 				gas: (
-					numBeginUnlocking * this.base.msgOpts.beginUnlocking.gas +
-					numSuperfluidUndelegate * this.base.msgOpts.superfluidUndelegate.gas +
-					numSuperfluidUnbondLock * this.base.msgOpts.superfluidUnbondLock.gas
+					numBeginUnlocking * this.msgOpts.beginUnlocking.gas +
+					numSuperfluidUndelegate * this.msgOpts.superfluidUndelegate.gas +
+					numSuperfluidUnbondLock * this.msgOpts.superfluidUnbondLock.gas
 				).toString(),
 			},
 			undefined,
@@ -1179,53 +1156,7 @@ export class OsmosisAccount {
 		);
 	}
 
-	/**
-	 * @deprecated
-	 * @param lockIds
-	 * @param memo
-	 * @param onFulfill
-	 */
-	async sendUnlockPeriodLockMsg(lockIds: string[], memo: string = '', onFulfill?: (tx: any) => void) {
-		const msgs = lockIds.map(lockId => {
-			return {
-				type: this.base.msgOpts.unlockPeriodLock.type,
-				value: {
-					owner: this.base.bech32Address,
-					// XXX: 얘는 어째서인지 소문자가 아님 ㅋ;
-					ID: lockId,
-				},
-			};
-		});
-
-		await this.base.sendMsgs(
-			'unlockPeriodLock',
-			msgs,
-			memo,
-			{
-				amount: [],
-				gas: (msgs.length * this.base.msgOpts.unlockPeriodLock.gas).toString(),
-			},
-			undefined,
-			tx => {
-				if (tx.code == null || tx.code === 0) {
-					// Refresh the balances
-					const queries = this.queriesStore.get(this.chainId);
-					queries.queryBalances.getQueryBech32Address(this.base.bech32Address).fetch();
-
-					// Refresh the unlocking coins
-					queries.osmosis.queryLockedCoins.get(this.base.bech32Address).fetch();
-					queries.osmosis.queryUnlockingCoins.get(this.base.bech32Address).fetch();
-					queries.osmosis.queryAccountLocked.get(this.base.bech32Address).fetch();
-				}
-
-				if (onFulfill) {
-					onFulfill(tx);
-				}
-			}
-		);
-	}
-
-	protected get queries(): DeepReadonly<QueriesSetBase & HasOsmosisQueries> {
+	protected get queries(): DeepReadonly<QueriesSetBase & OsmosisQueries> {
 		return this.queriesStore.get(this.chainId);
 	}
 }

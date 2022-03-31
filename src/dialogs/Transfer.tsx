@@ -89,19 +89,15 @@ export const TransferDialog = wrapBaseDialog(
 
 			const amountConfig = useBasicAmountConfig(
 				chainStore,
+				queriesStore,
 				chainStore.current.chainId,
 				pickOne(account.bech32Address, counterpartyAccount.bech32Address, isWithdraw),
-				pickOne(currency, currency.originCurrency!, isWithdraw),
-				pickOne(
-					queriesStore.get(chainStore.current.chainId).queryBalances,
-					queriesStore.get(counterpartyChainId).queryBalances,
-					isWithdraw
-				)
+				pickOne(currency, currency.originCurrency!, isWithdraw)
 			);
 			const feeConfig = useFakeFeeConfig(
 				chainStore,
 				pickOne(chainStore.current.chainId, counterpartyChainId, isWithdraw),
-				pickOne(account.msgOpts.ibcTransfer.gas, counterpartyAccount.msgOpts.ibcTransfer.gas, isWithdraw)
+				pickOne(account.cosmos.msgOpts.ibcTransfer.gas, counterpartyAccount.cosmos.msgOpts.ibcTransfer.gas, isWithdraw)
 			);
 			amountConfig.setFeeConfig(feeConfig);
 
@@ -297,7 +293,7 @@ export const TransferDialog = wrapBaseDialog(
 								disabled={
 									!account.isReadyToSendMsgs ||
 									!counterpartyAccount.isReadyToSendMsgs ||
-									amountConfig.getError() != null ||
+									amountConfig.error != null ||
 									!isValidCustomWithdrawAddr
 								}
 								onClick={async e => {

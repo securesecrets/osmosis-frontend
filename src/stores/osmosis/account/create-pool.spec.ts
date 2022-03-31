@@ -9,7 +9,7 @@ describe('Test Osmosis Create Pool Tx', () => {
 		await initLocalnet();
 
 		const account = accountStore.getAccount(chainStore.current.chainId);
-		account.broadcastMode = 'block';
+		account.cosmos.broadcastMode = 'block';
 		await waitAccountLoaded(account);
 	});
 

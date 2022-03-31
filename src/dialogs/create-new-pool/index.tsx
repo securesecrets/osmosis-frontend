@@ -11,7 +11,7 @@ import { useStore } from '../../stores';
 import { Dec, DecUtils } from '@keplr-wallet/unit';
 import { IFeeConfig, TxChainSetter } from '@keplr-wallet/hooks';
 import { BasicAmountConfig } from '../../hooks/tx/basic-amount-config';
-import { ChainGetter, ObservableQueryBalances } from '@keplr-wallet/stores';
+import { ChainGetter, IQueriesStore, ObservableQueryBalances } from '@keplr-wallet/stores';
 import { useFakeFeeConfig } from '../../hooks/tx';
 import { computedFn } from 'mobx-utils';
 
@@ -21,9 +21,6 @@ export class CreateNewPoolConfig extends TxChainSetter {
 
 	@observable.ref
 	protected _feeConfig: IFeeConfig | undefined = undefined;
-
-	@observable.ref
-	protected _queryBalances: ObservableQueryBalances;
 
 	@observable.shallow
 	protected _assets: {
@@ -36,14 +33,13 @@ export class CreateNewPoolConfig extends TxChainSetter {
 
 	constructor(
 		chainGetter: ChainGetter,
+		protected readonly queriesStore: IQueriesStore,
 		initialChainId: string,
-		sender: string,
-		queryBalances: ObservableQueryBalances
+		sender: string
 	) {
 		super(chainGetter, initialChainId);
 
 		this._sender = sender;
-		this._queryBalances = queryBalances;
 
 		makeObservable(this);
 	}
@@ -79,7 +75,7 @@ export class CreateNewPoolConfig extends TxChainSetter {
 
 	@action
 	addAsset(currency: AppCurrency) {
-		const config = new BasicAmountConfig(this.chainGetter, this.chainId, this.sender, currency, this.queryBalances);
+		const config = new BasicAmountConfig(this.chainGetter, this.queriesStore, this.chainId, this.sender, currency);
 		if (this.feeConfig) {
 			config.setFeeConfig(this.feeConfig);
 		}
@@ -120,23 +116,13 @@ export class CreateNewPoolConfig extends TxChainSetter {
 		}
 	}
 
-	get queryBalances(): ObservableQueryBalances {
-		return this._queryBalances;
-	}
-
-	@action
-	setQueryBalances(queryBalances: ObservableQueryBalances) {
-		this._queryBalances = queryBalances;
-
-		for (const asset of this.assets) {
-			asset.amountConfig.setQueryBalances(queryBalances);
-		}
-	}
-
 	get sendableCurrencies(): AppCurrency[] {
-		return this._queryBalances.getQueryBech32Address(this._sender).positiveBalances.map(bal => {
-			return bal.currency;
-		});
+		return this.queriesStore
+			.get(this.chainId)
+			.queryBalances.getQueryBech32Address(this._sender)
+			.positiveBalances.map(bal => {
+				return bal.currency;
+			});
 	}
 
 	get swapFee(): string {
@@ -201,7 +187,7 @@ export class CreateNewPoolConfig extends TxChainSetter {
 
 	readonly getErrorOfAmount = computedFn(() => {
 		for (const asset of this.assets) {
-			const error = asset.amountConfig.getError();
+			const error = asset.amountConfig.error;
 			if (error != null) {
 				return error;
 			}
@@ -211,13 +197,12 @@ export class CreateNewPoolConfig extends TxChainSetter {
 
 export const useCreateNewPoolConfig = (
 	chainGetter: ChainGetter,
+	queriesStore: IQueriesStore,
 	chainId: string,
-	sender: string,
-	queryBalances: ObservableQueryBalances
+	sender: string
 ) => {
-	const [config] = useState(() => new CreateNewPoolConfig(chainGetter, chainId, sender, queryBalances));
+	const [config] = useState(() => new CreateNewPoolConfig(chainGetter, queriesStore, chainId, sender));
 	config.setChain(chainId);
-	config.setQueryBalances(queryBalances);
 	config.setSender(sender);
 
 	return config;
@@ -227,15 +212,9 @@ export const CreateNewPoolDialog = wrapBaseDialog(
 	observer(({ close }: { close: () => void }) => {
 		const { chainStore, accountStore, queriesStore } = useStore();
 		const account = accountStore.getAccount(chainStore.current.chainId);
-		const queries = queriesStore.get(chainStore.current.chainId);
 
-		const config = useCreateNewPoolConfig(
-			chainStore,
-			chainStore.current.chainId,
-			account.bech32Address,
-			queries.queryBalances
-		);
-		const feeConfig = useFakeFeeConfig(chainStore, chainStore.current.chainId, account.msgOpts.createPool.gas);
+		const config = useCreateNewPoolConfig(chainStore, queriesStore, chainStore.current.chainId, account.bech32Address);
+		const feeConfig = useFakeFeeConfig(chainStore, chainStore.current.chainId, account.osmosis.msgOpts.createPool.gas);
 		config.setFeeConfig(feeConfig);
 
 		const [stage, setStage] = useState(1);

@@ -25,7 +25,7 @@ describe('Test Osmosis Total Pools Query', () => {
 
 	test('Query total pools', async () => {
 		const account = accountStore.getAccount(chainStore.current.chainId);
-		account.broadcastMode = 'block';
+		account.cosmos.broadcastMode = 'block';
 		await waitAccountLoaded(account);
 
 		// And prepare the 3 pools
@@ -77,13 +77,6 @@ describe('Test Osmosis Total Pools Query', () => {
 		}
 
 		const queryNumPools = queriesStore.get(chainStore.current.chainId).osmosis.queryGammNumPools;
-
-		await queryNumPools.waitFreshResponse();
-
-		// XXX: This line is needed due to the bug that the canceling fetching sometimes make the `isFetching` false.
-		await new Promise(resolve => {
-			setTimeout(resolve, 3000);
-		});
 
 		await queryNumPools.waitFreshResponse();
 

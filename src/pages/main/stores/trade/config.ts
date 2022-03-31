@@ -1,5 +1,5 @@
 import { AmountConfig, InsufficientAmountError } from '@keplr-wallet/hooks';
-import { ChainGetter, ObservableQueryBalances } from '@keplr-wallet/stores';
+import { ChainGetter, IQueriesStore } from '@keplr-wallet/stores';
 import { AppCurrency } from '@keplr-wallet/types';
 import { CoinPretty, Dec, DecUtils, Int, IntPretty } from '@keplr-wallet/unit';
 import { action, computed, makeObservable, observable, override } from 'mobx';
@@ -9,12 +9,10 @@ import { GammSwapManager } from '../../../../stores/osmosis/swap';
 import { SlippageStep } from '../../models/tradeModels';
 import { slippageStepToPercentage } from '../../utils/slippageStepToPercentage';
 import { QueriedPoolBase } from '../../../../stores/osmosis/query/pool';
+import { OsmosisQueries } from 'src/stores/osmosis/query';
 
 // CONTRACT: Use with `observer`
 export class TradeConfig extends AmountConfig {
-	@observable.ref
-	protected _queryPools: ObservableQueryPools;
-
 	@observable
 	protected inCurrencyMinimalDenom: string = '';
 	@observable
@@ -39,15 +37,12 @@ export class TradeConfig extends AmountConfig {
 
 	constructor(
 		chainGetter: ChainGetter,
+		protected readonly queriesStore: IQueriesStore<OsmosisQueries>,
 		initialChainId: string,
 		sender: string,
-		queryBalances: ObservableQueryBalances,
-		protected swapManager: GammSwapManager,
-		queryPools: ObservableQueryPools
+		protected swapManager: GammSwapManager
 	) {
-		super(chainGetter, initialChainId, sender, undefined, queryBalances);
-
-		this._queryPools = queryPools;
+		super(chainGetter, queriesStore, initialChainId, sender, undefined);
 
 		makeObservable(this);
 
@@ -56,13 +51,8 @@ export class TradeConfig extends AmountConfig {
 		keepAlive(this, 'optimizedRoutes');
 	}
 
-	@action
-	setQueryPools(queryPools: ObservableQueryPools) {
-		this._queryPools = queryPools;
-	}
-
 	get queryPools(): ObservableQueryPools {
-		return this._queryPools;
+		return this.queriesStore.get(this.chainId).osmosis.queryGammPools;
 	}
 
 	/**
@@ -148,8 +138,9 @@ export class TradeConfig extends AmountConfig {
 	@override
 	get amount(): string {
 		if (this.ratio != null) {
-			const balance = this.queryBalances
-				.getQueryBech32Address(this.sender)
+			const balance = this.queriesStore
+				.get(this.chainId)
+				.queryBalances.getQueryBech32Address(this.sender)
 				.getBalanceFromCurrency(this.sendCurrency)
 				.mul(new Dec(this.ratio.toString()));
 
@@ -346,7 +337,7 @@ export class TradeConfig extends AmountConfig {
 
 	@computed
 	get estimatedSlippage(): IntPretty {
-		const error = this.getError();
+		const error = this.error;
 		if (error != null && !(error instanceof InsufficientAmountError)) {
 			return new IntPretty(new Int(0));
 		}
@@ -432,8 +423,9 @@ export class TradeConfig extends AmountConfig {
 		return false;
 	}
 
-	getError(): Error | undefined {
-		const error = super.getError();
+	@override
+	get error(): Error | undefined {
+		const error = super.error;
 		if (error) {
 			return error;
 		}

@@ -21,7 +21,6 @@ export const TradeClipboard: FunctionComponent = observer(() => {
 	const { chainStore, queriesStore, accountStore, swapManager } = useStore();
 
 	const account = accountStore.getAccount(chainStore.current.chainId);
-	const queries = queriesStore.get(chainStore.current.chainId);
 
 	const history = useHistory();
 
@@ -32,16 +31,15 @@ export const TradeClipboard: FunctionComponent = observer(() => {
 
 	const config = useTradeConfig(
 		chainStore,
+		queriesStore,
 		chainStore.current.chainId,
 		account.bech32Address,
-		queries.queryBalances,
-		swapManager,
-		queries.osmosis.queryGammPools
+		swapManager
 	);
 	const feeConfig = useFakeFeeConfig(
 		chainStore,
 		chainStore.current.chainId,
-		account.msgOpts.swapExactAmountIn.gas * Math.max(config.poolIds.length, 1)
+		account.osmosis.msgOpts.swapExactAmountIn.gas * Math.max(config.poolIds.length, 1)
 	);
 	config.setFeeConfig(feeConfig);
 

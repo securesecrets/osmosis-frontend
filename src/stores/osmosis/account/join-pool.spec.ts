@@ -18,7 +18,7 @@ describe('Test Osmosis Join Pool Tx', () => {
 		queriesStore = stores.queriesStore;
 
 		const account = accountStore.getAccount(chainStore.current.chainId);
-		account.broadcastMode = 'block';
+		account.cosmos.broadcastMode = 'block';
 		await waitAccountLoaded(account);
 
 		// And prepare the pool
@@ -78,7 +78,10 @@ describe('Test Osmosis Join Pool Tx', () => {
 			.get(chainStore.current.chainId)
 			.osmosis.queryGammPools.getObservableQueryPool(poolId);
 		await queryPool.waitFreshResponse();
-		const estimated = queryPool.pool!.estimateJoinSwap(shareOutAmount, account.msgOpts.joinPool.shareCoinDecimals);
+		const estimated = queryPool.pool!.estimateJoinSwap(
+			shareOutAmount,
+			account.osmosis.msgOpts.joinPool.shareCoinDecimals
+		);
 
 		const tx = await new Promise<any>(resolve => {
 			account.osmosis.sendJoinPoolMsg(poolId, shareOutAmount, '0', '', tx => {
@@ -122,7 +125,7 @@ describe('Test Osmosis Join Pool Tx', () => {
 					{
 						key: 'amount',
 						value: `${new Dec(shareOutAmount)
-							.mul(DecUtils.getPrecisionDec(account.msgOpts.joinPool.shareCoinDecimals))
+							.mul(DecUtils.getPrecisionDec(account.osmosis.msgOpts.joinPool.shareCoinDecimals))
 							.truncate()
 							.toString()}gamm/pool/${poolId}`,
 					},
@@ -142,7 +145,10 @@ describe('Test Osmosis Join Pool Tx', () => {
 			.get(chainStore.current.chainId)
 			.osmosis.queryGammPools.getObservableQueryPool(poolId);
 		await queryPool.waitFreshResponse();
-		const estimated = queryPool.pool!.estimateJoinSwap(shareOutAmount, account.msgOpts.joinPool.shareCoinDecimals);
+		const estimated = queryPool.pool!.estimateJoinSwap(
+			shareOutAmount,
+			account.osmosis.msgOpts.joinPool.shareCoinDecimals
+		);
 
 		const tx = await new Promise<any>(resolve => {
 			account.osmosis.sendJoinPoolMsg(poolId, shareOutAmount, '0.1', '', tx => {
@@ -186,7 +192,7 @@ describe('Test Osmosis Join Pool Tx', () => {
 					{
 						key: 'amount',
 						value: `${new Dec(shareOutAmount)
-							.mul(DecUtils.getPrecisionDec(account.msgOpts.joinPool.shareCoinDecimals))
+							.mul(DecUtils.getPrecisionDec(account.osmosis.msgOpts.joinPool.shareCoinDecimals))
 							.truncate()
 							.toString()}gamm/pool/${poolId}`,
 					},

@@ -1,11 +1,5 @@
 import { ObservableQueryPools, ObservableQueryNumPools } from './pools';
-import {
-	ChainGetter,
-	CosmwasmQueries,
-	HasCosmwasmQueries,
-	QueriesSetBase,
-	QueriesWithCosmos,
-} from '@keplr-wallet/stores';
+import { ChainGetter, CosmwasmQueries, QueriesSetBase } from '@keplr-wallet/stores';
 import { KVStore } from '@keplr-wallet/common';
 import { DeepReadonly } from 'utility-types';
 import { ObservableQueryGammPoolShare } from './pool-share';
@@ -32,23 +26,26 @@ import {
 	ObservableQuerySuperfluidParams,
 } from './superfluid-pools';
 
-export interface HasOsmosisQueries {
-	osmosis: OsmosisQueries;
+export interface OsmosisQueries {
+	osmosis: OsmosisQueriesImpl;
 }
 
-export class QueriesWithCosmosAndOsmosis extends QueriesWithCosmos implements HasOsmosisQueries, HasCosmwasmQueries {
-	public readonly osmosis: DeepReadonly<OsmosisQueries>;
-	public readonly cosmwasm: DeepReadonly<CosmwasmQueries>;
+export const OsmosisQueries = {
+	use(): (
+		queriesSetBase: QueriesSetBase,
+		kvStore: KVStore,
+		chainId: string,
+		chainGetter: ChainGetter
+	) => OsmosisQueries {
+		return (queriesSetBase: QueriesSetBase, kvStore: KVStore, chainId: string, chainGetter: ChainGetter) => {
+			return {
+				osmosis: new OsmosisQueriesImpl(queriesSetBase, kvStore, chainId, chainGetter),
+			};
+		};
+	},
+};
 
-	constructor(kvStore: KVStore, chainId: string, chainGetter: ChainGetter) {
-		super(kvStore, chainId, chainGetter);
-
-		this.osmosis = new OsmosisQueries(this, kvStore, chainId, chainGetter);
-		this.cosmwasm = new CosmwasmQueries(this, kvStore, chainId, chainGetter);
-	}
-}
-
-export class OsmosisQueries {
+export class OsmosisQueriesImpl {
 	public readonly queryGammPools: DeepReadonly<ObservableQueryPools>;
 	public readonly queryGammNumPools: DeepReadonly<ObservableQueryNumPools>;
 	public readonly queryGammPoolShare: DeepReadonly<ObservableQueryGammPoolShare>;

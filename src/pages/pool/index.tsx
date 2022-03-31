@@ -97,17 +97,13 @@ export const LBPInPageSwapClipboard: FunctionComponent<{
 	const { chainStore, queriesStore, accountStore } = useStore();
 
 	const account = accountStore.getAccount(chainStore.current.chainId);
-	const queries = queriesStore.get(chainStore.current.chainId);
 
-	const config = usePoolSwapConfig(
+	const config = usePoolSwapConfig(chainStore, queriesStore, chainStore.current.chainId, account.bech32Address, poolId);
+	const feeConfig = useFakeFeeConfig(
 		chainStore,
 		chainStore.current.chainId,
-		account.bech32Address,
-		queries.queryBalances,
-		poolId,
-		queries.osmosis.queryGammPools
+		account.osmosis.msgOpts.swapExactAmountIn.gas
 	);
-	const feeConfig = useFakeFeeConfig(chainStore, chainStore.current.chainId, account.msgOpts.swapExactAmountIn.gas);
 	config.setFeeConfig(feeConfig);
 
 	useEffect(() => {

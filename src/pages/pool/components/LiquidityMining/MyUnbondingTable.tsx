@@ -143,36 +143,7 @@ const UnlockingTableRow = observer(function UnlockingTableRow({
 				</Text>
 			</TableData>
 			<TableData width={tableWidths[2]}>
-				{endTimeMoment.isBefore(dayjs()) ? (
-					<ButtonFaint
-						disabled={!account.isReadyToSendMsgs}
-						onClick={async e => {
-							e.preventDefault();
-
-							if (account.isReadyToSendMsgs) {
-								setIsWithdrawing(true);
-
-								try {
-									// XXX: Due to the block gas limit, restrict the number of lock id to included in the one tx.
-									await account.osmosis.sendUnlockPeriodLockMsg(lockIds.slice(0, 3), '', () => {
-										setIsWithdrawing(false);
-									});
-								} catch (e) {
-									setIsWithdrawing(false);
-								}
-							}
-						}}>
-						{isWithdrawing ? (
-							<Spinner />
-						) : (
-							<Text color="gold" isMobileView={isMobileView}>
-								Withdraw
-							</Text>
-						)}
-					</ButtonFaint>
-				) : (
-					<Text isMobileView={isMobileView}>{endTimeMoment.fromNow()}</Text>
-				)}
+				<Text isMobileView={isMobileView}>{endTimeMoment.fromNow()}</Text>
 			</TableData>
 		</TableBodyRow>
 	);

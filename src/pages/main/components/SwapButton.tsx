@@ -162,7 +162,7 @@ export const SwapButton = observer(function SwapButton({ config }: Props) {
 		<CtaButton
 			onClick={handleSwapButtonClick}
 			style={config.showWarningOfSlippage ? { backgroundColor: colorError } : undefined}
-			disabled={!account.isReadyToSendMsgs || config.poolIds.length === 0 || config.getError() != null}>
+			disabled={!account.isReadyToSendMsgs || config.poolIds.length === 0 || config.error != null}>
 			{account.isSendingMsg === 'swapExactAmountIn' ? (
 				<Spinner />
 			) : (
