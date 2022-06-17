@@ -5,10 +5,10 @@ import { createKeplrChainInfos, SimplifiedChainInfo } from "./utils";
 const chainInfos = (
   [
     {
-      rpc: "https://rpc-osmosis.keplr.app/", // test: "http://rpc-test.osmosis.zone/"
-      rest: "https://lcd-osmosis.keplr.app/", // test: "http://lcd-test.osmosis.zone/"
-      chainId: "osmosis-1", // test: "osmo-test-4"
-      chainName: "Osmosis",
+      rpc: "http://rpc-test.osmosis.zone/", // test: "http://rpc-test.osmosis.zone/"
+      rest: "http://lcd-test.osmosis.zone/", // test: "http://lcd-test.osmosis.zone/"
+      chainId: "osmo-test-4", // test: "osmo-test-4"
+      chainName: "Osmosis Testnet",
       bip44: {
         coinType: 118,
       },
