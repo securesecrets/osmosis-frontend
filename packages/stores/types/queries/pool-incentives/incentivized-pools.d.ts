@@ -1,6 +1,6 @@
 import { KVStore } from "@keplr-wallet/common";
 import { ChainGetter, ObservableChainQuery } from "@keplr-wallet/stores";
-import { FiatCurrency } from "@keplr-wallet/types";
+import { AppCurrency, FiatCurrency } from "@keplr-wallet/types";
 import { RatePretty } from "@keplr-wallet/unit";
 import { Duration } from "dayjs/plugin/duration";
 import { ObservableQueryEpochs } from "../epochs";
@@ -10,6 +10,7 @@ import { IPriceStore } from "../../price";
 import { ObservableQueryDistrInfo } from "./distr-info";
 import { ObservableQueryLockableDurations } from "./lockable-durations";
 import { IncentivizedPools } from "./types";
+import { ObservableQueryGuageById } from "../incentives";
 export declare class ObservableQueryIncentivizedPools extends ObservableChainQuery<IncentivizedPools> {
     protected readonly queryLockableDurations: ObservableQueryLockableDurations;
     protected readonly queryDistrInfo: ObservableQueryDistrInfo;
@@ -34,5 +35,6 @@ export declare class ObservableQueryIncentivizedPools extends ObservableChainQue
      */
     readonly computeAPY: (poolId: string, duration: Duration, priceStore: IPriceStore, fiatCurrency: FiatCurrency) => RatePretty;
     protected computeAPYForSpecificDuration(poolId: string, duration: Duration, priceStore: IPriceStore, fiatCurrency: FiatCurrency): RatePretty;
+    readonly computeExternalIncentiveGaugeApr: (gauge: ObservableQueryGuageById, incentiveCurrency: AppCurrency, priceStore: IPriceStore) => RatePretty;
     get isAprFetching(): boolean;
 }

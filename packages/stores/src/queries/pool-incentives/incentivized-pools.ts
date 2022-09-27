@@ -1,6 +1,6 @@
 import { KVStore } from "@keplr-wallet/common";
 import { ChainGetter, ObservableChainQuery } from "@keplr-wallet/stores";
-import { FiatCurrency } from "@keplr-wallet/types";
+import { AppCurrency, FiatCurrency } from "@keplr-wallet/types";
 import { Dec, Int, RatePretty } from "@keplr-wallet/unit";
 import dayjs from "dayjs";
 import { Duration } from "dayjs/plugin/duration";
@@ -16,6 +16,7 @@ import { IPriceStore } from "../../price";
 import { ObservableQueryDistrInfo } from "./distr-info";
 import { ObservableQueryLockableDurations } from "./lockable-durations";
 import { IncentivizedPools } from "./types";
+import { ObservableQueryGuageById } from "../incentives";
 
 export class ObservableQueryIncentivizedPools extends ObservableChainQuery<IncentivizedPools> {
   constructor(
@@ -96,7 +97,7 @@ export class ObservableQueryIncentivizedPools extends ObservableChainQuery<Incen
 
       const fiatCurrency = priceStore.getFiatCurrency(
         priceStore.defaultVsCurrency
-      )!;
+      );
 
       // 내림차순으로 정렬한다.
       const lockableDurations = this.queryLockableDurations.lockableDurations
@@ -105,8 +106,8 @@ export class ObservableQueryIncentivizedPools extends ObservableChainQuery<Incen
           return v1.asMilliseconds() > v2.asMilliseconds() ? -1 : 1;
         });
 
-      if (lockableDurations.length === 0) {
-        return new RatePretty(new Dec(0));
+      if (lockableDurations.length === 0 || !fiatCurrency) {
+        return new RatePretty(new Dec(0)).ready(false);
       }
 
       return this.computeAPY(
@@ -223,12 +224,15 @@ export class ObservableQueryIncentivizedPools extends ObservableChainQuery<Incen
                     })
                     .asMilliseconds() / epoch.duration.asMilliseconds();
 
+                /** Issued over year. */
                 const yearProvision = epochProvision.mul(
                   new Dec(numEpochPerYear.toString())
                 );
+                /** Portion of daily provisions for just pool incentives. */
                 const yearProvisionToPots = yearProvision.mul(
                   this.queryMintParmas.distributionProportions.poolIncentives
                 );
+                /** Daily provisions adjusted by gauge's weight. */
                 const yearProvisionToPot = yearProvisionToPots.mul(
                   new Dec(potWeight).quo(new Dec(totalWeight))
                 );
@@ -250,6 +254,55 @@ export class ObservableQueryIncentivizedPools extends ObservableChainQuery<Incen
 
     return new RatePretty(new Dec(0));
   }
+
+  readonly computeExternalIncentiveGaugeApr = computedFn(
+    (
+      gauge: ObservableQueryGuageById,
+      incentiveCurrency: AppCurrency,
+      priceStore: IPriceStore
+    ): RatePretty => {
+      const fiatCurrency = priceStore.getFiatCurrency(
+        priceStore.defaultVsCurrency
+      );
+      const epochIdentifier = this.queryMintParmas.epochIdentifier;
+      if (!fiatCurrency || !epochIdentifier || !incentiveCurrency.coinGeckoId) {
+        return new RatePretty(new Dec(0)).ready(false);
+      }
+
+      const epoch = this.queryEpochs.getEpoch(epochIdentifier);
+      const price = priceStore.getPrice(incentiveCurrency.coinGeckoId);
+      if (!epoch.duration || !price) {
+        return new RatePretty(new Dec(0)).ready(false);
+      }
+
+      /** Amounts per epoch. */
+      const epochProvision = gauge
+        .getCoin(incentiveCurrency)
+        .quo(new Dec(gauge.remainingEpoch));
+
+      const numEpochPerYear =
+        dayjs
+          .duration({
+            years: 1,
+          })
+          .asMilliseconds() / epoch.duration.asMilliseconds();
+
+      /** Issued over year. */
+      const yearProvision = epochProvision.mul(
+        new Dec(numEpochPerYear.toString())
+      );
+
+      const yearProvisionPrice = new Dec(price.toString()).mul(
+        yearProvision.toDec()
+      );
+
+      const gaugeTotalValue = gauge
+        .getCoin(incentiveCurrency)
+        .mul(new Dec(price.toString()));
+
+      return new RatePretty(yearProvisionPrice.quo(gaugeTotalValue.toDec()));
+    }
+  );
 
   @computed
   get isAprFetching(): boolean {
