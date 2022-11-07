@@ -144,7 +144,7 @@ const chainInfos = (
             "cw20:secret12rcvz0umvk875kd6a803txhtlu7y0pnd73kcej:ALTER",
           coinDecimals: 6,
           coinGeckoId: "alter",
-          coinImageUrl: "/tokens/alter.jpg",
+          coinImageUrl: "/tokens/alter.svg",
         },
         {
           type: "cw20",
@@ -154,7 +154,7 @@ const chainInfos = (
             "cw20:secret1yxcexylwyxlq58umhgsjgstgcg2a0ytfy4d9lt:BUTT",
           coinDecimals: 6,
           coinGeckoId: "button",
-          coinImageUrl: "/tokens/butt.png",
+          coinImageUrl: "/tokens/butt.svg",
         },
         {
           type: "cw20",
